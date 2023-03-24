@@ -100,6 +100,7 @@ func (M *MemStorage) AddMetric(tp string, name string, value string) error {
 		if err != nil {
 			return err
 		}
+		ui = tools.ToFixed(ui, 3)
 		M.Gauge[name] = ui
 	case "Counter":
 		ui, err := strconv.ParseInt(value, 10, 64)
