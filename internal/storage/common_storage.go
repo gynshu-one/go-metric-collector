@@ -82,7 +82,7 @@ func (M *MemStorage) FindMetricByName(tp string, name string) (string, error) {
 	if !metric.IsValid() {
 		return "", fmt.Errorf("metric name is not presented%s", name)
 	} else {
-		return fmt.Sprintf("%v", metric), nil
+		return fmt.Sprintf("%.3f", metric.Float()), nil
 	}
 }
 
