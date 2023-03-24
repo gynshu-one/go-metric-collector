@@ -26,10 +26,9 @@ func TestAgent_MakeReport(t *testing.T) {
 		},
 	}
 
-	pollInterval := 100 * time.Millisecond
-	reportInterval := 1 * time.Second
-	serverAddr := "localhost:8080"
-	agent := NewAgent(&pollInterval, &reportInterval, &serverAddr)
+	pollInterval := 2 * time.Millisecond
+	reportInterval := 10 * time.Second
+	serverAddr := "http://localhost:8080"
 	equal := func(t *testing.T, a, b interface{}) {
 		t.Helper()
 		if !reflect.DeepEqual(a, b) {
@@ -43,9 +42,9 @@ func TestAgent_MakeReport(t *testing.T) {
 				equal(t, req.URL.String(), tt.want)
 				rw.WriteHeader(http.StatusOK)
 			}))
-			defer server.Close()
-			server.Client()
 			serverAddr = server.URL
+			defer server.Close()
+			agent := NewAgent(pollInterval, reportInterval, serverAddr)
 			agent.MakeReport(tt.name, tt.args[0], tt.args[1])
 		})
 	}
@@ -81,17 +80,17 @@ func TestAgent_MakeReport(t *testing.T) {
 func TestNewAgent(t *testing.T) {
 	pollInterval := time.Minute
 	reportInterval := time.Hour
-	serverAddr := "localhost:8080"
-	agent := NewAgent(&pollInterval, &reportInterval, &serverAddr)
+	serverAddr := "http://localhost:8080"
+	agent := NewAgent(pollInterval, reportInterval, serverAddr)
 
-	if *agent.pollInterval != pollInterval {
-		t.Errorf("Expected poll interval to be %v but got %v", pollInterval, *agent.pollInterval)
+	if agent.pollInterval != pollInterval {
+		t.Errorf("Expected poll interval to be %v but got %v", pollInterval, agent.pollInterval)
 	}
-	if *agent.reportInterval != reportInterval {
-		t.Errorf("Expected report interval to be %v but got %v", reportInterval, *agent.reportInterval)
+	if agent.reportInterval != reportInterval {
+		t.Errorf("Expected report interval to be %v but got %v", reportInterval, agent.reportInterval)
 	}
-	if *agent.serverAddr != serverAddr {
-		t.Errorf("Expected server address to be %v but got %v", serverAddr, *agent.serverAddr)
+	if agent.serverAddr != serverAddr {
+		t.Errorf("Expected server address to be %v but got %v", serverAddr, agent.serverAddr)
 	}
 
 	if agent.metrics.Gauge == nil {

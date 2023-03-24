@@ -1,13 +1,45 @@
 package handlers
 
 import (
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"testing"
 )
 
-func TestHandleMetrics(t *testing.T) {
+func TestLive(t *testing.T) {
+	type args struct {
+		method string
+		target string
+	}
+	tests := []struct {
+		name               string
+		args               args
+		expectedStatusCode int
+	}{
+		{
+			name: "Server is live",
+			args: args{
+				method: "GET",
+				target: "/live",
+			},
+			expectedStatusCode: http.StatusOK,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gin.Default()
+			r.GET("/live", Live)
+			w := SetUpRouter(r, tt.args.method, tt.args.target)
+			if w.Code != tt.expectedStatusCode {
+				t.Errorf("Live() = %v, want %v", w.Code, tt.expectedStatusCode)
+
+			}
+		})
+	}
+}
+
+func TestUpdateMetrics(t *testing.T) {
 	type args struct {
 		method string
 		target string
@@ -23,7 +55,7 @@ func TestHandleMetrics(t *testing.T) {
 				method: "GET",
 				target: "/update/",
 			},
-			expectedStatusCode: http.StatusBadRequest,
+			expectedStatusCode: http.StatusNotFound,
 		},
 		{
 			name: "Metric type is empty",
@@ -33,13 +65,13 @@ func TestHandleMetrics(t *testing.T) {
 				method: "POST",
 				target: "/update/",
 			},
-			expectedStatusCode: http.StatusNotImplemented,
+			expectedStatusCode: http.StatusNotFound,
 		},
 		{
 			name: "Metric type is wrong",
 			args: args{
 				method: "POST",
-				target: "/update/invalid",
+				target: "/update/invalid/name/val",
 			},
 			expectedStatusCode: http.StatusNotImplemented,
 		},
@@ -48,6 +80,14 @@ func TestHandleMetrics(t *testing.T) {
 			args: args{
 				method: "POST",
 				target: "/update/gauge/",
+			},
+			expectedStatusCode: http.StatusNotFound,
+		},
+		{
+			name: "Metric name is empty",
+			args: args{
+				method: "POST",
+				target: "/update/counter/",
 			},
 			expectedStatusCode: http.StatusNotFound,
 		},
@@ -76,96 +116,22 @@ func TestHandleMetrics(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			h := http.HandlerFunc(HandleMetrics)
-			r := httptest.NewRequest(tt.args.method, tt.args.target, nil)
-			h.ServeHTTP(w, r)
-			res := w.Result()
-			defer res.Body.Close()
-			HandleMetrics(w, r)
-			if res.StatusCode != tt.expectedStatusCode {
-				t.Fatalf("Expected status code %d, got %d", tt.expectedStatusCode, res.StatusCode)
-
-				//t.Errorf("Body: %s", w.Body.String())
+			r := gin.Default()
+			r.POST("/update/:metric_type/:metric_name/:metric_value", UpdateMetrics)
+			w := SetUpRouter(r, tt.args.method, tt.args.target)
+			if w.Code != tt.expectedStatusCode {
+				t.Errorf("UpdateMetrics() = %v, want %v", w.Code, tt.expectedStatusCode)
 			}
 		})
 	}
 }
-
-func TestNewServer(t *testing.T) {
-	type args struct {
-		defaultAddr *string
-		defaultPort *string
-	}
-	addr := "local"
-	port := "80"
-	tests := []struct {
-		name string
-		args args
-		want *Server
-	}{
-		{
-			name: "Create a new server",
-			args: args{
-				defaultAddr: &addr,
-				defaultPort: &port,
-			},
-			want: &Server{
-				defaultAddr: &addr,
-				defaultPort: &port,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewServer(tt.args.defaultAddr, tt.args.defaultPort); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewServer() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+func SetUpRouter(r *gin.Engine, method string, target string) *httptest.ResponseRecorder {
+	req, _ := http.NewRequest(method, target, nil)
+	w := httptest.NewRecorder()
+	r.RedirectTrailingSlash = false
+	r.RedirectFixedPath = true
+	r.ServeHTTP(w, req)
+	return w
 }
-
-//func TestServer_Start(t *testing.T) {
-//	type fields struct {
-//		defaultAddr *string
-//		defaultPort *string
-//	}
-//	addr := "localhost"
-//	port := "8009"
-//	tests := []struct {
-//		name   string
-//		fields fields
-//	}{
-//		{
-//			name: "Start the server",
-//			fields: fields{
-//				defaultAddr: &addr,
-//				defaultPort: &port,
-//			},
-//		},
-//	}
-//
-//	for _, tt := range tests {
-//		t.Run(tt.name, func(t *testing.T) {
-//			s := &Server{
-//				defaultAddr: tt.fields.defaultAddr,
-//				defaultPort: tt.fields.defaultPort,
-//			}
-//			go func() {
-//				s.Start()
-//			}()
-//			// make sure the server is running
-//			r := httptest.NewRequest("GET", "http://localhost:8009/live", nil)
-//			w := httptest.NewRecorder()
-//			http.DefaultServeMux.ServeHTTP(w, r)
-//			res := w.Result()
-//			defer res.Body.Close()
-//			if res.StatusCode != http.StatusOK {
-//				t.Fatalf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
-//			}
-//		})
-//	}
-//}

@@ -70,24 +70,46 @@ func InitStorage() *MemStorage {
 	return Mem
 }
 
+// FindMetricByName finds a metric by name and returns its value
+// If the metric is not found, it returns an error
+func (M *MemStorage) FindMetricByName(tp string, name string) (string, error) {
+	// this is general approach, in case we want to add more metric types
+	f := reflect.ValueOf(M).Elem().FieldByName(tp)
+	if !f.IsValid() {
+		return "", fmt.Errorf("metric type is not presented%s", tp)
+	}
+	metric := f.MapIndex(reflect.ValueOf(name))
+	if !metric.IsValid() {
+		return "", fmt.Errorf("metric name is not presented%s", name)
+	} else {
+		return fmt.Sprintf("%v", metric), nil
+	}
+}
+
+// CheckMetricType checks if the metric type is presented in MemStorage
+func (M *MemStorage) CheckMetricType(tp string) bool {
+	f := reflect.ValueOf(M).Elem().FieldByName(tp)
+	return f.IsValid()
+}
+
 // AddMetric adds single metrics to MemStorage
 func (M *MemStorage) AddMetric(tp string, name string, value string) error {
 	switch tp {
-	case "gauge":
+	case "Gauge":
 		ui, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			return err
 		}
 		M.Gauge[name] = ui
-	case "counter":
+	case "Counter":
 		ui, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return err
 		}
-		if name == "PollCount" {
-			M.Counter[name] += ui
-		} else {
+		if _, ok := M.Counter[name]; !ok {
 			M.Counter[name] = ui
+		} else {
+			M.Counter[name] += ui
 		}
 	}
 	return nil
@@ -95,14 +117,15 @@ func (M *MemStorage) AddMetric(tp string, name string, value string) error {
 
 // ReadRuntime reads all values of runtime.MemStats and stores it in MemStorage
 func (M *MemStorage) ReadRuntime(memStats *runtime.MemStats) {
-	v := reflect.ValueOf(memStats).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		if _, ok := M.Gauge[v.Type().Field(i).Name]; ok {
-			if v.Field(i).Kind() == reflect.Uint64 {
-				M.Gauge[v.Type().Field(i).Name] = float64(v.Field(i).Uint())
-			} else if v.Field(i).Kind() == reflect.Float64 {
-				M.Gauge[v.Type().Field(i).Name] = v.Field(i).Float()
-			}
+	input := reflect.ValueOf(memStats).Elem()
+	for i := 0; i < input.NumField(); i++ {
+		switch input.Field(i).Kind() {
+		case reflect.Uint64:
+			value := float64(input.Field(i).Uint())
+			M.Gauge[input.Type().Field(i).Name] = value
+		case reflect.Float64:
+			value := input.Field(i).Float()
+			M.Gauge[input.Type().Field(i).Name] = value
 		}
 	}
 	M.Counter["PollCount"]++
@@ -116,14 +139,14 @@ func (M *MemStorage) ReadRuntime(memStats *runtime.MemStats) {
 func (M *MemStorage) ApplyToAll(f ApplyToAll, exclude ...string) {
 	var defaultExclusion = []string{"PauseNs", "PauseEnd", "EnableGC", "DebugGC", "BySize"}
 	defaultExclusion = append(defaultExclusion, exclude...)
-	for k, v := range M.Gauge {
-		if !tools.Contains(defaultExclusion, k) {
-			f("gauge", k, fmt.Sprint(v))
-		}
-	}
-	for k, v := range M.Counter {
-		if !tools.Contains(defaultExclusion, k) {
-			f("counter", k, fmt.Sprint(v))
+	v := reflect.ValueOf(M).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		metricType := v.Type().Field(i).Name
+		metric := v.Field(i)
+		for _, key := range metric.MapKeys() {
+			if !tools.Contains(defaultExclusion, key.String()) {
+				f(metricType, key.String(), fmt.Sprintf("%v", metric.MapIndex(key)))
+			}
 		}
 	}
 }
@@ -147,4 +170,12 @@ func (M *MemStorage) CheckIfNameExists(name string) bool {
 		}
 	})
 	return found
+}
+
+func (M *MemStorage) GenerateHTMLTable() []string {
+	var table []string
+	M.ApplyToAll(func(tp string, name string, value string) {
+		table = append(table, fmt.Sprintf("<tr><td>%s</td><td>%s</td><td>%s</td></tr>", tp, name, value))
+	})
+	return table
 }

@@ -1,127 +1,72 @@
 package handlers
 
 import (
-	"fmt"
-	"github.com/fatih/color"
+	"github.com/gin-gonic/gin"
 	"github.com/gynshu-one/go-metric-collector/internal/storage"
-	"log"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"net/http"
-	"strings"
+	"sort"
 )
 
-type Server struct {
-	defaultAddr *string
-	defaultPort *string
+func Live(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, gin.H{"message": "Server is live"})
 }
+func Value(ctx *gin.Context) {
+	metricType := ctx.Param("metric_type")
+	metricName := ctx.Param("metric_name")
 
-func NewServer(defaultAddr *string, defaultPort *string) *Server {
-	return &Server{
-		defaultAddr: defaultAddr,
-		defaultPort: defaultPort,
-	}
-}
+	// This is because the metric finder is case-sensitive
+	cs := cases.Title(language.English)
+	metricType = cs.String(metricType)
 
-func (s *Server) Start() {
-	// Start basic server
-	http.HandleFunc("/live", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("Server is live"))
-	})
-	http.HandleFunc("/update/", HandleMetrics)
-	fmt.Printf("Server started at %s:%s", *s.defaultAddr, *s.defaultPort)
-	server := &http.Server{
-		Addr: "localhost:8080",
-	}
-	err := server.ListenAndServe()
+	value, err := storage.Memory.FindMetricByName(metricType, metricName)
 	if err != nil {
-		log.Fatal(err)
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Type or name not found"})
 		return
 	}
+	ctx.Data(http.StatusOK, "text/plain", []byte(value))
+}
+func UpdateMetrics(ctx *gin.Context) {
+	metricType := ctx.Param("metric_type")
+	metricName := ctx.Param("metric_name")
+	metricValue := ctx.Param("metric_value")
+
+	if metricType == "" {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Please provide metric type"})
+		return
+	}
+	if metricName == "" {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Please provide metric name"})
+		return
+	}
+	if metricValue == "" {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Please provide metric value"})
+		return
+	}
+
+	cs := cases.Title(language.English)
+	metricType = cs.String(metricType)
+	if !storage.Memory.CheckMetricType(metricType) {
+		ctx.JSON(http.StatusNotImplemented, gin.H{"error": "Invalid metric type"})
+		return
+	}
+	err := storage.Memory.AddMetric(metricType, metricName, metricValue)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric value, should be a number"})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "Metric updated", "type": metricType, "name": metricName, "value": metricValue})
 }
 
-func HandleMetrics(w http.ResponseWriter, r *http.Request) {
-	// The first and second segment will be " " and "update", so start from the second one
-	path := ""
-	if strings.HasSuffix(r.URL.Path, "/") {
-		path = r.URL.Path[1 : len(r.URL.Path)-1]
-	} else {
-		path = r.URL.Path[1:]
+func HTMLAllMetrics(ctx *gin.Context) {
+	body := storage.Memory.GenerateHTMLTable()
+	// Sort the table by type, name, so it's easier to read when page updates
+	sort.Strings(body)
+	html := "<html><head><title>Metrics</title></head><body><table><tbody><tr><th>Type</th><th>Name</th><th>Value</th></tr>"
+	for _, v := range body {
+		html += v
 	}
-	segments := strings.Split(path, "/")
-	segments = segments[1:]
-	fmt.Printf("Segments: %v", segments)
-	// check if request is post
-	if r.Method != "POST" {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Header().Set("Content-Type", "application/json")
-		color.Red("Only POST requests are allowed")
-		w.Write([]byte("Only POST requests are allowed"))
-		return
-	}
-	// Check content type
-	//if r.Header.Get("Content-Type") != "text/plain" {
-	//	w.WriteHeader(http.StatusBadRequest)
-	//	w.Header().Set("Content-Type", "application/json")
-	//	color.Red("Content-Type must be text/plain")
-	//	w.Write([]byte("Content-Type must be text/plain"))
-	//	return
-	//}
-
-	if len(segments) < 1 || segments[0] == "" {
-		w.WriteHeader(http.StatusNotImplemented)
-		w.Header().Set("Content-Type", "application/json")
-		color.Red("Please provide metric type eg. /update/gauge")
-		w.Write([]byte("Please provide metric type eg. /update/gauge"))
-		return
-	}
-	// Lowercase the metric type to avoid case sensitivity
-	segments[0] = strings.ToLower(segments[0])
-	// Check if metric type is valid
-	if segments[0] != "gauge" && segments[0] != "counter" {
-		w.WriteHeader(http.StatusNotImplemented)
-		w.Header().Set("Content-Type", "application/json")
-		color.Red("Invalid metric type")
-		w.Write([]byte("Invalid metric type"))
-		return
-	}
-
-	metricType := segments[0]
-	if len(segments) < 2 || segments[1] == "" {
-		w.WriteHeader(http.StatusNotFound)
-		w.Header().Set("Content-Type", "application/json")
-		color.Red("\nPlease provide metric name separated by  / eg. /update/gauge/cpu/0.5")
-		w.Write([]byte("Please provide metric name  separated by / eg. /update/gauge/cpu/0.5"))
-		return
-	}
-	metricName := segments[1]
-	if len(segments) < 3 || segments[2] == "" {
-		w.WriteHeader(http.StatusNotFound)
-		w.Header().Set("Content-Type", "application/json")
-		color.Red("\nPlease provide metric value separated by / eg. /update/gauge/cpu/0.5")
-		w.Write([]byte("Please provide metric value separated by / eg. /update/gauge/cpu/0.5"))
-		return
-	}
-	metricValue := segments[2]
-	//if !storage.Stor.CheckIfNameExists(metricName) {
-	//	w.WriteHeader(http.StatusNotFound)
-	//	w.Header().Set("Content-Type", "application/json")
-	//	color.Red("\nMetric name is not acceptable")
-	//	w.Write([]byte("Metric name is not acceptable"))
-	//	return
-	//}
-	// ReadRuntime
-	err := storage.Stor.AddMetric(metricType, metricName, metricValue)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Header().Set("Content-Type", "application/json")
-		color.Red("\nInvalid metric value %s Should be number", metricValue)
-		w.Write([]byte("Invalid metric value. Should be number"))
-		return
-	}
-	// Send status code 200
-	//fmt.Printf("\nReceived and collected metric: %s %s %s", metricType, metricName, metricValue)
-	w.WriteHeader(http.StatusOK)
-	//storage.Stor.PrintAll()
-	w.Write([]byte(metricType + " " + metricName + " " + metricValue + "\n"))
+	html += "</tbody></table></body></html>"
+	ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
 }

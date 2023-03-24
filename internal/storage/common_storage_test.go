@@ -31,7 +31,7 @@ func TestMemStorage_AddMetric(t *testing.T) {
 				Counter: make(map[string]int64),
 			},
 			args: args{
-				tp:    "gauge",
+				tp:    "Gauge",
 				name:  "Alloc",
 				value: "100",
 			},
@@ -47,7 +47,7 @@ func TestMemStorage_AddMetric(t *testing.T) {
 				Counter: make(map[string]int64),
 			},
 			args: args{
-				tp:    "gauge",
+				tp:    "Gauge",
 				name:  "Alloc",
 				value: "all",
 			},
@@ -60,7 +60,7 @@ func TestMemStorage_AddMetric(t *testing.T) {
 				Counter: make(map[string]int64),
 			},
 			args: args{
-				tp:    "counter",
+				tp:    "Counter",
 				name:  "PollCount",
 				value: "100",
 			},
@@ -136,8 +136,8 @@ func TestMemStorage_ApplyToAll(t *testing.T) {
 				Counter: tt.fields.Counter,
 			}
 			M.ApplyToAll(tt.args.f, tt.args.exclude...)
-			if Result != "type: gauge, name: Alloc, value: 100type: counter, name: PollCount, value: 100" {
-				t.Errorf("ApplyToAll() error expected %v, got %v", "type: gauge, name: Alloc, value: 100type: counter, name: PollCount, value: 100", Result)
+			if Result != "type: Gauge, name: Alloc, value: 100type: Counter, name: PollCount, value: 100" {
+				t.Errorf("ApplyToAll() error expected %v, got %v", "type: Gauge, name: Alloc, value: 100type: Counter, name: PollCount, value: 100", Result)
 			}
 		})
 	}

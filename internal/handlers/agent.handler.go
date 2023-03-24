@@ -9,13 +9,13 @@ import (
 )
 
 type Agent struct {
-	pollInterval   *time.Duration
-	reportInterval *time.Duration
-	serverAddr     *string
+	pollInterval   time.Duration
+	reportInterval time.Duration
+	serverAddr     string
 	metrics        *storage.MemStorage
 }
 
-func NewAgent(pollInterval *time.Duration, reportInterval *time.Duration, serverAddr *string) *Agent {
+func NewAgent(pollInterval, reportInterval time.Duration, serverAddr string) *Agent {
 	return &Agent{
 		pollInterval:   pollInterval,
 		reportInterval: reportInterval,
@@ -34,12 +34,12 @@ func (a *Agent) Poll() {
 			runtime.ReadMemStats(memStats)
 			a.metrics.ReadRuntime(memStats)
 			// Sleep for poll interval
-			time.Sleep(*a.pollInterval)
+			time.Sleep(a.pollInterval)
 		}
 	}()
 	// Report
 	for {
-		time.Sleep(*a.reportInterval)
+		time.Sleep(a.reportInterval)
 		a.Report()
 	}
 
@@ -55,7 +55,7 @@ func (a *Agent) Report() {
 func (a *Agent) MakeReport(t, n, v string) {
 	// Create a new request
 	req, err := http.NewRequest("POST",
-		*a.serverAddr+"/update/"+t+"/"+n+"/"+v, nil)
+		a.serverAddr+"/update/"+t+"/"+n+"/"+v, nil)
 	if err != nil {
 		log.Fatalf("\nUpdate request maker failed with error: %e\n", err)
 

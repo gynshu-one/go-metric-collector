@@ -1,3 +1,3 @@
 package storage
 
-var Stor = InitStorage()
+var Memory = InitStorage()
