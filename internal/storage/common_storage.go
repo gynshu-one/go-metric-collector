@@ -77,12 +77,13 @@ func (M *MemStorage) FindMetricByName(tp string, name string) (string, error) {
 	f := reflect.ValueOf(M).Elem().FieldByName(tp)
 	if !f.IsValid() {
 		return "", fmt.Errorf("metric type is not presented%s", tp)
-	}
-	metric := f.MapIndex(reflect.ValueOf(name))
-	if !metric.IsValid() {
-		return "", fmt.Errorf("metric name is not presented%s", name)
 	} else {
-		return fmt.Sprintf("%.3f", metric.Float()), nil
+		metric := f.MapIndex(reflect.ValueOf(name))
+		if !metric.IsValid() {
+			return "", fmt.Errorf("metric name is not presented%s", name)
+		} else {
+			return fmt.Sprintf("%v", metric), nil
+		}
 	}
 }
 
@@ -100,7 +101,6 @@ func (M *MemStorage) AddMetric(tp string, name string, value string) error {
 		if err != nil {
 			return err
 		}
-		ui = tools.ToFixed(ui, 3)
 		M.Gauge[name] = ui
 	case "Counter":
 		ui, err := strconv.ParseInt(value, 10, 64)

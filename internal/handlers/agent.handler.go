@@ -15,7 +15,7 @@ type Agent struct {
 	metrics        *storage.MemStorage
 }
 
-func NewAgent(pollInterval, reportInterval time.Duration, serverAddr string) *Agent {
+func NewAgent(pollInterval time.Duration, reportInterval time.Duration, serverAddr string) *Agent {
 	return &Agent{
 		pollInterval:   pollInterval,
 		reportInterval: reportInterval,

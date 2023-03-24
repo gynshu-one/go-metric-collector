@@ -24,8 +24,9 @@ func Value(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Type or name not found"})
 		return
+	} else {
+		ctx.Data(http.StatusOK, "text/plain", []byte(value))
 	}
-	ctx.Data(http.StatusOK, "text/plain", []byte(value))
 }
 func UpdateMetrics(ctx *gin.Context) {
 	metricType := ctx.Param("metric_type")
@@ -55,8 +56,11 @@ func UpdateMetrics(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric value, should be a number"})
 		return
+	} else {
+		ctx.JSON(http.StatusOK, gin.H{"message": "Metric updated", "type": metricType, "name": metricName, "value": metricValue})
+		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "Metric updated", "type": metricType, "name": metricName, "value": metricValue})
+
 }
 
 func HTMLAllMetrics(ctx *gin.Context) {
