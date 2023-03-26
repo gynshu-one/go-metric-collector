@@ -1,0 +1,26 @@
+version: "3"
+
+services:
+  server:
+    restart: always
+    build:
+      dockerfile: ./cmd/server/Dockerfile
+    container_name: server
+    ports:
+      - "8080:8080"
+    environment:
+      - DOCKER=true
+    env_file:
+      - app.env
+    command: /bin/sh -c "go run /app/cmd/server"
+  agent:
+    restart: always
+    build:
+      dockerfile: ./cmd/agent/Dockerfile
+    container_name: agent
+    environment:
+      - DOCKER=true
+    network_mode: "service:server"
+    command: /bin/sh -c "go run /app/cmd/agent"
+    depends_on:
+      - server
