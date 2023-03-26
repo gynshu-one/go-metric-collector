@@ -9,8 +9,8 @@ func MetricsRoute(router *gin.Engine) {
 	router.GET("/", handlers.HTMLAllMetrics)
 	router.GET("/live/", handlers.Live)
 
-	router.POST("/value/", handlers.ValueJson)
-	router.POST("/update/", handlers.UpdateMetricsJson)
+	router.POST("/value/", handlers.ValueJSON)
+	router.POST("/update/", handlers.UpdateMetricsJSON)
 
 	router.GET("/value/:metric_type/:metric_name", handlers.Value)
 	router.POST("/update/:metric_type/:metric_name/:metric_value", handlers.UpdateMetrics)

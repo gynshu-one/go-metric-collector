@@ -17,8 +17,8 @@ func setupRouter() *gin.Engine {
 	router.GET("/", HTMLAllMetrics)
 	router.GET("/live/", Live)
 
-	router.POST("/value/", ValueJson)
-	router.POST("/update/", UpdateMetricsJson)
+	router.POST("/value/", ValueJSON)
+	router.POST("/update/", UpdateMetricsJSON)
 
 	router.GET("/value/:metric_type/:metric_name", Value)
 	router.POST("/update/:metric_type/:metric_name/:metric_value", UpdateMetrics)

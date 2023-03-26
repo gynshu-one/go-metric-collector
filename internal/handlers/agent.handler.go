@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
+	"fmt"
+	"github.com/go-resty/resty/v2"
 	"github.com/gynshu-one/go-metric-collector/internal/storage"
 	"log"
-	"net/http"
 	"time"
 )
 
@@ -39,14 +39,17 @@ func (a *Agent) Poll() {
 	// Report
 	for {
 		time.Sleep(a.ReportInterval)
-		a.Metrics.RandomValue()
-		a.Report()
+		go func() {
+			a.Metrics.RandomValue()
+			a.Report()
+		}()
 	}
 
 }
 
 func (a *Agent) Report() {
 	// check if the metric is presented in MemStorage
+
 	a.Metrics.ApplyToAll(a.MakeReport)
 	a.Metrics.PrintAll()
 }
@@ -54,30 +57,19 @@ func (a *Agent) Report() {
 // MakeReport makes a report to the server
 // Notice that serverAddr must include the protocol
 func (a *Agent) MakeReport(m storage.Metrics) {
-	// Create a new request
-	bd, err := json.Marshal(&m)
+	client := resty.New()
+	jsonData, err := json.Marshal(&m)
 	if err != nil {
-		log.Fatalf("\nFailed to marshal Metrics: %e\n", err)
+		log.Fatal(err)
 	}
-	newReader := bytes.NewReader(bd)
-	req, err := http.NewRequest("POST",
-		a.ServerAddr+"/update/", newReader)
-	if err != nil {
-		log.Fatalf("\nUpdate request maker failed with error: %e\n", err)
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(jsonData).
+		Post(a.ServerAddr + "/update/")
 
-	}
-	// Set the content type
-	req.Header.Set("Content-Type", "application/json")
-	// Create a client
-	client := &http.Client{}
-	// Send the request
-	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("\nUpdate request failed with error: %e\n", err)
+		fmt.Printf("Error: %v", err)
+		return
 	}
-	defer resp.Body.Close()
-	if err != nil {
-		log.Fatalf("\nUpdate request failed with error: %e\n", err)
-
-	}
+	fmt.Printf("Response: %v", resp)
 }

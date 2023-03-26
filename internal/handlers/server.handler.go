@@ -13,7 +13,7 @@ import (
 func Live(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Server is live"})
 }
-func ValueJson(ctx *gin.Context) {
+func ValueJSON(ctx *gin.Context) {
 	// must get storage.Metrics is json body of request
 	var m storage.Metrics
 	body := ctx.Request.Body
@@ -41,7 +41,7 @@ func ValueJson(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, newM)
 }
-func UpdateMetricsJson(ctx *gin.Context) {
+func UpdateMetricsJSON(ctx *gin.Context) {
 	var m storage.Metrics
 	body := ctx.Request.Body
 	defer body.Close()
@@ -84,11 +84,11 @@ func HTMLAllMetrics(ctx *gin.Context) {
 }
 
 func Value(ctx *gin.Context) {
-	metricType := ctx.Param("metric_type")
+	//metricType := ctx.Param("metric_type")
 	metricName := ctx.Param("metric_name")
 
 	// This is because the metric finder is case-sensitive
-	metricType = strings.ToLower(metricType)
+	//metricType = strings.ToLower(metricType)
 
 	m, ok := storage.Memory.FindMetricByName(metricName)
 	if !ok {
