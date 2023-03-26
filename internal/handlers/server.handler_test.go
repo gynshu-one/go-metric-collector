@@ -54,7 +54,7 @@ func TestValue(t *testing.T) {
 	router.ServeHTTP(resp, req)
 
 	assert.Equal(t, http.StatusOK, resp.Code)
-	assert.Equal(t, "2", resp.Body.String())
+	assert.Equal(t, "2.000", resp.Body.String())
 
 	req2, _ := http.NewRequest("GET", "/value/gauge/NonExistent", nil)
 	resp2 := httptest.NewRecorder()

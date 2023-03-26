@@ -101,7 +101,7 @@ func Value(ctx *gin.Context) {
 		}
 		if m.Value != nil {
 			floatVal := *m.Value
-			floatStr := strconv.FormatFloat(floatVal, 'f', 2, 64)
+			floatStr := strconv.FormatFloat(floatVal, 'f', 3, 64)
 			ctx.Data(http.StatusOK, "text/plain", []byte(floatStr))
 		} else if m.Delta != nil {
 			intDelta := *m.Delta
