@@ -13,7 +13,10 @@ import (
 func main() {
 	configs.CFG.LoadConfig(".")
 	router := gin.Default()
+	// change gin mode
+	//gin.SetMode(gin.ReleaseMode)
 	router.Use(cors.Default())
+
 	routers.MetricsRoute(router)
 	// these two lines written to pass autotests (wrong code, redirect)
 	// -------------------------------

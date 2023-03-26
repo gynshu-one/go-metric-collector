@@ -1,266 +1,155 @@
 package storage
 
 import (
-	"fmt"
+	"github.com/gynshu-one/go-metric-collector/internal/tools"
+	"github.com/stretchr/testify/assert"
+	"reflect"
 	"runtime"
 	"testing"
 )
 
-func TestMemStorage_AddMetric(t *testing.T) {
-	type fields struct {
-		Gauge   map[string]float64
-		Counter map[string]int64
+func TestValidateTypeAndValue(t *testing.T) {
+	storage := InitStorage()
+
+	gaugeMetric := Metrics{
+		ID:    "TestGauge",
+		MType: "gauge",
+		Value: tools.Float64Ptr(1.0),
 	}
-	type args struct {
-		tp    string
-		name  string
-		value string
+	assert.True(t, storage.ValidateTypeAndValue(gaugeMetric), "Gauge metric with value should be valid")
+
+	counterMetric := Metrics{
+		ID:    "TestCounter",
+		MType: "counter",
+		Delta: tools.Int64Ptr(1),
 	}
-	tests := []struct {
-		name        string
-		fields      fields
-		args        args
-		wantErr     bool
-		wantGauge   map[string]float64
-		wantCounter map[string]int64
-	}{
-		{
-			name: "AddValidMetric",
-			fields: fields{
-				Gauge:   make(map[string]float64),
-				Counter: make(map[string]int64),
-			},
-			args: args{
-				tp:    "Gauge",
-				name:  "Alloc",
-				value: "100",
-			},
-			wantErr: false,
-			wantGauge: map[string]float64{
-				"Alloc": 100,
-			},
-		},
-		{
-			name: "AddFalseMetric",
-			fields: fields{
-				Gauge:   make(map[string]float64),
-				Counter: make(map[string]int64),
-			},
-			args: args{
-				tp:    "Gauge",
-				name:  "Alloc",
-				value: "all",
-			},
-			wantErr: true,
-		},
-		{
-			name: "AddValidCounter",
-			fields: fields{
-				Gauge:   make(map[string]float64),
-				Counter: make(map[string]int64),
-			},
-			args: args{
-				tp:    "Counter",
-				name:  "PollCount",
-				value: "100",
-			},
-			wantErr: false,
-			wantCounter: map[string]int64{
-				"PollCount": 100,
-			},
-		},
+	assert.True(t, storage.ValidateTypeAndValue(counterMetric), "Counter metric with delta should be valid")
+
+	invalidGaugeMetric := Metrics{
+		ID:    "InvalidGauge",
+		MType: "gauge",
+		Delta: tools.Int64Ptr(1),
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			M := &MemStorage{
-				Gauge:   tt.fields.Gauge,
-				Counter: tt.fields.Counter,
-			}
-			if err := M.AddMetric(tt.args.tp, tt.args.name, tt.args.value); (err != nil) != tt.wantErr {
-				t.Errorf("AddMetric() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if tt.wantGauge != nil {
-				for k, v := range tt.wantGauge {
-					if M.Gauge[k] != v {
-						t.Errorf("AddMetric() error expected %v, got %v", v, M.Gauge[k])
-					}
-				}
-			}
-			if tt.wantCounter != nil {
-				for k, v := range tt.wantCounter {
-					if M.Counter[k] != v {
-						t.Errorf("AddMetric() error expected %v, got %v", v, M.Counter[k])
-					}
-				}
-			}
-		})
+	assert.False(t, storage.ValidateTypeAndValue(invalidGaugeMetric), "Gauge metric with delta should be invalid")
+
+	invalidCounterMetric := Metrics{
+		ID:    "InvalidCounter",
+		MType: "counter",
+		Value: tools.Float64Ptr(1.0),
 	}
+	assert.False(t, storage.ValidateTypeAndValue(invalidCounterMetric), "Counter metric with value should be invalid")
 }
 
-func TestMemStorage_ApplyToAll(t *testing.T) {
-	type fields struct {
-		Gauge   map[string]float64
-		Counter map[string]int64
+func TestUpdateMetric(t *testing.T) {
+	storage := InitStorage()
+
+	gaugeMetric := Metrics{
+		ID:    "TestGauge",
+		MType: "gauge",
+		Value: tools.Float64Ptr(1.0),
 	}
-	type args struct {
-		f       ApplyToAll
-		exclude []string
+	updatedGauge := storage.UpdateMetric(gaugeMetric)
+	assert.Equal(t, gaugeMetric, updatedGauge, "Gauge metric should be updated correctly")
+
+	counterMetric := Metrics{
+		ID:    "TestCounter",
+		MType: "counter",
+		Delta: tools.Int64Ptr(1),
 	}
-	var Result string
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		{
-			name: "ApplyToAll",
-			fields: fields{
-				Gauge: map[string]float64{
-					"Alloc": 100,
-				},
-				Counter: map[string]int64{
-					"PollCount": 100,
-				},
-			},
-			args: args{
-				f: func(tp string, name string, value string) {
-					Result += fmt.Sprintf("type: %s, name: %s, value: %s", tp, name, value)
-				},
-			},
-		},
+	updatedCounter := storage.UpdateMetric(counterMetric)
+	assert.Equal(t, counterMetric, updatedCounter, "Counter metric should be updated correctly")
+
+	newCounterMetric := Metrics{
+		ID:    "TestCounter",
+		MType: "counter",
+		Delta: tools.Int64Ptr(2),
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			M := &MemStorage{
-				Gauge:   tt.fields.Gauge,
-				Counter: tt.fields.Counter,
-			}
-			M.ApplyToAll(tt.args.f, tt.args.exclude...)
-			if Result != "type: Gauge, name: Alloc, value: 100type: Counter, name: PollCount, value: 100" {
-				t.Errorf("ApplyToAll() error expected %v, got %v", "type: Gauge, name: Alloc, value: 100type: Counter, name: PollCount, value: 100", Result)
-			}
-		})
+	expectedUpdatedCounter := Metrics{
+		ID:    "TestCounter",
+		MType: "counter",
+		Delta: tools.Int64Ptr(3),
 	}
+	updatedCounter = storage.UpdateMetric(newCounterMetric)
+	assert.Equal(t, expectedUpdatedCounter, updatedCounter, "Existing counter metric should be updated correctly")
 }
 
-func TestMemStorage_CheckIfNameExists(t *testing.T) {
-	type fields struct {
-		Gauge   map[string]float64
-		Counter map[string]int64
+func TestCheckMetricType(t *testing.T) {
+	storage := InitStorage()
+
+	assert.True(t, storage.CheckMetricType("gauge"), "Gauge should be a valid metric type")
+	assert.True(t, storage.CheckMetricType("counter"), "Counter should be a valid metric type")
+	assert.False(t, storage.CheckMetricType("invalidType"), "Invalid type should be invalid")
+}
+func TestFindMetricByName(t *testing.T) {
+	storage := InitStorage()
+
+	// Test not found metric
+	_, ok := storage.FindMetricByName("NonExistent")
+	assert.False(t, ok, "Non-existent metric should not be found")
+
+	// Test found metric
+	gaugeMetric := Metrics{
+		ID:    "TestGauge",
+		MType: "gauge",
+		Value: tools.Float64Ptr(1.0),
 	}
-	type args struct {
-		name string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		{
-			name: "CheckIfNameExists",
-			fields: fields{
-				Gauge: map[string]float64{
-					"Alloc": 100,
-				},
-			},
-			args: args{
-				name: "Alloc",
-			},
-			want: true,
-		},
-		{
-			name: "CheckIfNameDoesNotExists",
-			fields: fields{
-				Gauge: map[string]float64{
-					"Alloc": 100,
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			M := &MemStorage{
-				Gauge:   tt.fields.Gauge,
-				Counter: tt.fields.Counter,
-			}
-			if got := M.CheckIfNameExists(tt.args.name); got != tt.want {
-				t.Errorf("CheckIfNameExists() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	storage.UpdateMetric(gaugeMetric)
+	foundMetric, ok := storage.FindMetricByName("TestGauge")
+	assert.True(t, ok, "Existing metric should be found")
+	assert.Equal(t, gaugeMetric, foundMetric, "Found metric should match the expected metric")
 }
 
-//func TestMemStorage_PrintAll(t *testing.T) {
-//	type fields struct {
-//		Gauge   map[string]float64
-//		Counter map[string]int64
-//	}
-//	tests := []struct {
-//		name   string
-//		fields fields
-//	}{
-//		// TODO: Add test cases.
-//	}
-//	for _, tt := range tests {
-//		t.Run(tt.name, func(t *testing.T) {
-//			M := &MemStorage{
-//				Gauge:   tt.fields.Gauge,
-//				Counter: tt.fields.Counter,
-//			}
-//			M.PrintAll()
-//		})
-//	}
-//}
+func TestRandomValue(t *testing.T) {
+	storage := InitStorage()
+	storage.RandomValue()
 
-func TestMemStorage_ReadRuntime(t *testing.T) {
-	type fields struct {
-		Gauge   map[string]float64
-		Counter map[string]int64
+	metric, ok := storage.FindMetricByName("RandomValue")
+	assert.True(t, ok, "RandomValue metric should exist after calling RandomValue")
+	assert.NotNil(t, metric.Value, "RandomValue metric should have a value")
+}
+
+func TestAddPollCount(t *testing.T) {
+	storage := InitStorage()
+	storage.AddPollCount()
+
+	metric, ok := storage.FindMetricByName("PollCount")
+	assert.True(t, ok, "PollCount metric should exist after calling AddPollCount")
+	assert.NotNil(t, metric.Delta, "PollCount metric should have a delta")
+	assert.Equal(t, int64(1), *metric.Delta, "Initial PollCount metric delta should be 1")
+
+	storage.AddPollCount()
+	metric, _ = storage.FindMetricByName("PollCount")
+	assert.Equal(t, int64(2), *metric.Delta, "PollCount metric delta should be incremented to 2")
+}
+
+func TestCheckIfNameExists(t *testing.T) {
+	storage := InitStorage()
+
+	assert.False(t, storage.CheckIfNameExists("NonExistent"), "Non-existent metric should return false")
+
+	gaugeMetric := Metrics{
+		ID:    "TestGauge",
+		MType: "gauge",
+		Value: tools.Float64Ptr(1.0),
 	}
-	type args struct {
-		memStats *runtime.MemStats
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		{
-			name: "ReadRuntime",
-			fields: fields{
-				Gauge: map[string]float64{
-					"Alloc":     100,
-					"HeapAlloc": 100,
-				},
-				Counter: map[string]int64{
-					"PollCount": 100,
-				},
-			},
-			args: args{
-				memStats: &runtime.MemStats{
-					Alloc:     200,
-					HeapAlloc: 1,
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			M := &MemStorage{
-				Gauge:   tt.fields.Gauge,
-				Counter: tt.fields.Counter,
+	storage.UpdateMetric(gaugeMetric)
+	assert.True(t, storage.CheckIfNameExists("TestGauge"), "Existing metric should return true")
+}
+
+func TestReadRuntime(t *testing.T) {
+	storage := InitStorage()
+	storage.ReadRuntime()
+
+	memStats := &runtime.MemStats{}
+	runtime.ReadMemStats(memStats)
+	input := reflect.ValueOf(memStats).Elem()
+	var defaultExclusion = []string{"PauseNs", "PauseEnd", "EnableGC", "DebugGC", "BySize"}
+	for i := 0; i < input.NumField(); i++ {
+		fieldName := input.Type().Field(i).Name
+		if !tools.Contains(defaultExclusion, fieldName) {
+			if _, ok := storage.FindMetricByName(fieldName); !ok {
+				t.Errorf("Expected runtime metric %s not found in MemStorage", fieldName)
 			}
-			M.ReadRuntime(tt.args.memStats)
-			if M.Gauge["Alloc"] != 200 {
-				t.Errorf("ReadRuntime() error expected %v, got %v", 200, M.Gauge["Alloc"])
-			}
-			if _, ok := M.Gauge["HeapAlloc"]; !ok {
-				t.Fatalf("ReadRuntime() error expected %v, got %v", true, ok)
-			}
-			if M.Gauge["HeapAlloc"] != 1 {
-				t.Errorf("ReadRuntime() error expected %v, got %v", 1, M.Gauge["HeapAlloc"])
-			}
-		})
+		}
 	}
 }

@@ -1,67 +1,73 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"github.com/gynshu-one/go-metric-collector/internal/storage"
 	"log"
 	"net/http"
-	"runtime"
 	"time"
 )
 
 type Agent struct {
-	pollInterval   time.Duration
-	reportInterval time.Duration
-	serverAddr     string
-	metrics        *storage.MemStorage
+	PollInterval   time.Duration
+	ReportInterval time.Duration
+	ServerAddr     string
+	Metrics        storage.MemInterface
 }
 
-func NewAgent(pollInterval time.Duration, reportInterval time.Duration, serverAddr string) *Agent {
+func NewAgent(pollInterval, reportInterval time.Duration, serverAddr string) *Agent {
 	return &Agent{
-		pollInterval:   pollInterval,
-		reportInterval: reportInterval,
-		serverAddr:     serverAddr,
-		metrics:        storage.InitStorage(),
+		PollInterval:   pollInterval,
+		ReportInterval: reportInterval,
+		ServerAddr:     serverAddr,
+		Metrics:        storage.InitStorage(),
 	}
 }
 
-// Poll polls runtime metrics and reports them to the server by calling Report()
+// Poll polls runtime Metrics and reports them to the server by calling Report()
 func (a *Agent) Poll() {
-	memStats := &runtime.MemStats{}
-	a.metrics.Counter["PollCount"] = 0
-	// ReadRuntime runtime metrics
+	// ReadRuntime runtime Metrics
 	go func() {
 		for {
-			runtime.ReadMemStats(memStats)
-			a.metrics.ReadRuntime(memStats)
+			a.Metrics.AddPollCount()
+			a.Metrics.ReadRuntime()
 			// Sleep for poll interval
-			time.Sleep(a.pollInterval)
+			time.Sleep(a.PollInterval)
 		}
 	}()
 	// Report
 	for {
-		time.Sleep(a.reportInterval)
+		time.Sleep(a.ReportInterval)
+		a.Metrics.RandomValue()
 		a.Report()
 	}
 
 }
 
 func (a *Agent) Report() {
-	a.metrics.ApplyToAll(a.MakeReport)
-	a.metrics.Counter["PollCount"] = 0
+	// check if the metric is presented in MemStorage
+	a.Metrics.ApplyToAll(a.MakeReport)
+	a.Metrics.PrintAll()
 }
 
 // MakeReport makes a report to the server
 // Notice that serverAddr must include the protocol
-func (a *Agent) MakeReport(t, n, v string) {
+func (a *Agent) MakeReport(m storage.Metrics) {
 	// Create a new request
+	bd, err := json.Marshal(&m)
+	if err != nil {
+		log.Fatalf("\nFailed to marshal Metrics: %e\n", err)
+	}
+	newReader := bytes.NewReader(bd)
 	req, err := http.NewRequest("POST",
-		a.serverAddr+"/update/"+t+"/"+n+"/"+v, nil)
+		a.ServerAddr+"/update/", newReader)
 	if err != nil {
 		log.Fatalf("\nUpdate request maker failed with error: %e\n", err)
 
 	}
 	// Set the content type
-	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("Content-Type", "application/json")
 	// Create a client
 	client := &http.Client{}
 	// Send the request
