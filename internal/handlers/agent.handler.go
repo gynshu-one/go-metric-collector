@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+var Client = resty.New()
+
 type Agent struct {
 	PollInterval   time.Duration
 	ReportInterval time.Duration
@@ -51,18 +53,17 @@ func (a *Agent) Report() {
 	// check if the metric is presented in MemStorage
 
 	a.Metrics.ApplyToAll(a.MakeReport)
-	a.Metrics.PrintAll()
+	//a.Metrics.PrintAll()
 }
 
 // MakeReport makes a report to the server
 // Notice that serverAddr must include the protocol
 func (a *Agent) MakeReport(m storage.Metrics) {
-	client := resty.New()
 	jsonData, err := json.Marshal(&m)
 	if err != nil {
 		log.Fatal(err)
 	}
-	resp, err := client.R().
+	resp, err := Client.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(jsonData).
 		Post(a.ServerAddr + "/update/")

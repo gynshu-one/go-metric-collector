@@ -14,7 +14,7 @@ func main() {
 	configs.CFG.LoadConfig(".")
 	router := gin.Default()
 	// change gin mode
-	//gin.SetMode(gin.ReleaseMode)
+	gin.SetMode(gin.ReleaseMode)
 	router.Use(cors.Default())
 
 	routers.MetricsRoute(router)
@@ -27,7 +27,7 @@ func main() {
 	if dock != "" {
 		configs.CFG.Address = "0.0.0.0"
 	}
-	err := router.Run(configs.CFG.Address + ":" + configs.CFG.Port)
+	err := router.Run(configs.CFG.Address)
 	if err != nil {
 		log.Fatal(err)
 	}

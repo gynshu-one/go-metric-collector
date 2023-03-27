@@ -11,7 +11,7 @@ func main() {
 	configs.CFG.Address = "http://" + configs.CFG.Address
 	agent := handlers.NewAgent(time.Duration(configs.CFG.PollInterval)*time.Second,
 		time.Duration(configs.CFG.ReportInterval)*time.Second,
-		configs.CFG.Address+":"+configs.CFG.Port)
+		configs.CFG.Address)
 
 	// Start the agent
 	agent.Poll()
