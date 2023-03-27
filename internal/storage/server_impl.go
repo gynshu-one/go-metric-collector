@@ -32,6 +32,8 @@ type ServerInterface interface {
 	GenerateHTMLTable() []string
 
 	GetAll() []Metrics
+
+	ResetAll()
 }
 
 func InitServerStorage() ServerInterface {
@@ -60,6 +62,9 @@ func InitServerStorage() ServerInterface {
 	return mem
 
 }
+func (M MemStorage) ResetAll() {
+	M.Collection = &sync.Map{}
+}
 func (M MemStorage) StoreEverythingToFile() error {
 	allMetrics := M.GetAll()
 	// save to jsonData file
@@ -85,7 +90,8 @@ func (M MemStorage) LoadEverythingFromFile() error {
 	var metrics []Metrics
 	err = json.NewDecoder(file).Decode(&metrics)
 	if err != nil {
-		return err
+		log.Printf("Error decoding json may be file is empty: %v", err)
+		return nil
 	}
 	for _, m := range metrics {
 		M.Collection.Store(m.ID, m)

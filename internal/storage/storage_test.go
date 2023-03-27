@@ -12,6 +12,7 @@ import (
 func TestValidateTypeAndValue(t *testing.T) {
 	configs.CFG.LoadConfig()
 	storage := InitServerStorage()
+	storage.ResetAll()
 
 	gaugeMetric := Metrics{
 		ID:    "TestGauge",
@@ -45,6 +46,7 @@ func TestValidateTypeAndValue(t *testing.T) {
 func TestUpdateMetric(t *testing.T) {
 	configs.CFG.LoadConfig()
 	storage := InitServerStorage()
+	storage.ResetAll()
 
 	gaugeMetric := Metrics{
 		ID:    "TestGauge",
@@ -79,6 +81,7 @@ func TestUpdateMetric(t *testing.T) {
 func TestCheckMetricType(t *testing.T) {
 	configs.CFG.LoadConfig()
 	storage := InitServerStorage()
+	storage.ResetAll()
 
 	assert.True(t, storage.CheckMetricType("gauge"), "Gauge should be a valid metric type")
 	assert.True(t, storage.CheckMetricType("counter"), "Counter should be a valid metric type")
@@ -87,6 +90,7 @@ func TestCheckMetricType(t *testing.T) {
 func TestFindMetricByName(t *testing.T) {
 	configs.CFG.LoadConfig()
 	storage := InitServerStorage()
+	storage.ResetAll()
 
 	// Test not found metric
 	_, ok := storage.FindMetricByName("NonExistent")
@@ -130,6 +134,7 @@ func TestAddPollCount(t *testing.T) {
 func TestCheckIfNameExists(t *testing.T) {
 	configs.CFG.LoadConfig()
 	storage := InitServerStorage()
+	storage.ResetAll()
 
 	assert.False(t, storage.CheckIfNameExists("NonExistent"), "Non-existent metric should return false")
 
