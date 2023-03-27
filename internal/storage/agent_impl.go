@@ -12,91 +12,25 @@ import (
 	"sync"
 )
 
-//var Gauge = []string{
-//	"Alloc",
-//	"BuckHashSys",
-//	"Frees",
-//	"GCCPUFraction",
-//	"GCSys",
-//	"HeapAlloc",
-//	"HeapIdle",
-//	"HeapInuse",
-//	"HeapObjects",
-//	"HeapReleased",
-//	"HeapSys",
-//	"LastGC",
-//	"Lookups",
-//	"MCacheInuse",
-//	"MCacheSys",
-//	"MSpanInuse",
-//	"MSpanSys",
-//	"Mallocs",
-//	"NextGC",
-//	"NumForcedGC",
-//	"NumGC",
-//	"OtherSys",
-//	"PauseTotalNs",
-//	"StackInuse",
-//	"StackSys",
-//	"Sys",
-//	"TotalAlloc",
-//}
-//
-//var Counter = []string{
-//	"PollCount",
-//	"RandomValue",
-//}
-
-type Metrics struct {
-	ID    string   `json:"id"`
-	MType string   `json:"type"`
-	Delta *int64   `json:"delta,omitempty"`
-	Value *float64 `json:"value,omitempty"`
-}
-
-// MemStorage is a struct that stores all metrics
-// It Should be initialized using InitStorage() before using
-// because it has a predefined set of metrics
-type MemStorage struct {
-	Collection *sync.Map
-}
-type MemInterface interface {
+type AgentInterface interface {
 	FindMetricByName(name string) (Metrics, bool)
-	CheckMetricType(tp string) bool
-	UpdateMetric(m Metrics) Metrics
 	RandomValue()
 	AddPollCount()
-	ValidateValue(m Metrics) bool
-	ValidateTypeAndValue(m Metrics) bool
 	ReadRuntime()
 	ApplyToAll(f ApplyToAll, exclude ...string)
 	PrintAll()
 	GetAll() []Metrics
-	CheckIfNameExists(name string) bool
-	GenerateHTMLTable() []string
 }
 
 // ApplyToAll applies a function to all metrics in MemStorage
 type ApplyToAll func(Metrics)
 
-func InitStorage() MemInterface {
+func InitAgentStorage() AgentInterface {
 	return MemStorage{
 		Collection: &sync.Map{},
 	}
 }
 
-func (M MemStorage) ValidateTypeAndValue(m Metrics) bool {
-	if (m.MType == "gauge" && m.Value != nil) || (m.MType == "counter" && m.Delta != nil) {
-		return true
-	}
-	return false
-}
-func (M MemStorage) ValidateValue(m Metrics) bool {
-	if m.Value == nil && m.Delta == nil {
-		return false
-	}
-	return true
-}
 func (M MemStorage) RandomValue() {
 	act, load := M.Collection.LoadOrStore("RandomValue", Metrics{
 		ID:    "RandomValue",
@@ -120,49 +54,6 @@ func (M MemStorage) AddPollCount() {
 		*act.(Metrics).Delta += 1
 		M.Collection.Swap("PollCount", act)
 	}
-}
-
-// FindMetricByName finds a metric by name and returns its value
-// If the metric is not found, it returns false
-func (M MemStorage) FindMetricByName(name string) (Metrics, bool) {
-	m, ok := M.Collection.Load(name)
-	if !ok {
-		return Metrics{}, false
-	}
-	return m.(Metrics), true
-}
-
-// CheckMetricType checks if the metric type is presented in MemStorage
-func (M MemStorage) CheckMetricType(tp string) bool {
-	switch tp {
-	case "gauge", "counter":
-		return true
-	default:
-		return false
-	}
-}
-
-// UpdateMetric adds single metrics to MemStorage
-func (M MemStorage) UpdateMetric(m Metrics) Metrics {
-	switch m.MType {
-	case "gauge":
-		if m.Value != nil {
-			M.Collection.Store(m.ID, m)
-		}
-	case "counter":
-		if m.Delta != nil {
-			act, load := M.Collection.LoadOrStore(m.ID, m)
-			if load {
-				*act.(Metrics).Delta += *m.Delta
-				M.Collection.Swap(m.ID, act)
-			}
-		}
-	}
-	value, ok := M.Collection.Load(m.ID)
-	if !ok {
-		return Metrics{}
-	}
-	return value.(Metrics)
 }
 
 // ReadRuntime reads all values of runtime.MemStats and stores it in MemStorage
@@ -219,28 +110,6 @@ func (M MemStorage) PrintAll() {
 		fmt.Println(string(jsn))
 	})
 	color.Green("----------------------------------------\n")
-}
-
-// CheckIfNameExists checks if a metric name exists in MemStorage
-func (M MemStorage) CheckIfNameExists(name string) bool {
-	_, ok := M.Collection.Load(name)
-	return ok
-}
-
-func (M MemStorage) GenerateHTMLTable() []string {
-	var table []string
-	M.ApplyToAll(func(m Metrics) {
-		val := ""
-		if m.Value != nil {
-			val = fmt.Sprintf("%f", *m.Value)
-		}
-		if m.Delta != nil {
-			val = fmt.Sprintf("%d", *m.Delta)
-		}
-		table = append(table, fmt.Sprintf("<tr><td>%s</td><td>%s</td><td>%s</td></tr>",
-			m.MType, m.ID, val))
-	})
-	return table
 }
 
 func (M MemStorage) GetAll() []Metrics {

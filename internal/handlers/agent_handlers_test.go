@@ -40,7 +40,7 @@ func TestAgent_Poll(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 
-	allMetrics := agent.Metrics.GetAll()
+	allMetrics := Memory.GetAll()
 	assert.NotEmpty(t, allMetrics)
 }
 

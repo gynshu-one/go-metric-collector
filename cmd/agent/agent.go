@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	configs.CFG.LoadConfig(".")
+	configs.CFG.LoadConfig()
 	configs.CFG.Address = "http://" + configs.CFG.Address
 	agent := handlers.NewAgent(time.Duration(configs.CFG.PollInterval)*time.Second,
 		time.Duration(configs.CFG.ReportInterval)*time.Second,

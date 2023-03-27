@@ -10,12 +10,12 @@ import (
 )
 
 var Client = resty.New()
+var Memory = storage.InitAgentStorage()
 
 type Agent struct {
 	PollInterval   time.Duration
 	ReportInterval time.Duration
 	ServerAddr     string
-	Metrics        storage.MemInterface
 }
 
 func NewAgent(pollInterval, reportInterval time.Duration, serverAddr string) *Agent {
@@ -23,7 +23,6 @@ func NewAgent(pollInterval, reportInterval time.Duration, serverAddr string) *Ag
 		PollInterval:   pollInterval,
 		ReportInterval: reportInterval,
 		ServerAddr:     serverAddr,
-		Metrics:        storage.InitStorage(),
 	}
 }
 
@@ -32,8 +31,8 @@ func (a *Agent) Poll() {
 	// ReadRuntime runtime Metrics
 	go func() {
 		for {
-			a.Metrics.AddPollCount()
-			a.Metrics.ReadRuntime()
+			Memory.AddPollCount()
+			Memory.ReadRuntime()
 			// Sleep for poll interval
 			time.Sleep(a.PollInterval)
 		}
@@ -42,7 +41,7 @@ func (a *Agent) Poll() {
 	for {
 		time.Sleep(a.ReportInterval)
 		go func() {
-			a.Metrics.RandomValue()
+			Memory.RandomValue()
 			a.Report()
 		}()
 	}
@@ -52,8 +51,8 @@ func (a *Agent) Poll() {
 func (a *Agent) Report() {
 	// check if the metric is presented in MemStorage
 
-	a.Metrics.ApplyToAll(a.MakeReport)
-	//a.Metrics.PrintAll()
+	Memory.ApplyToAll(a.MakeReport)
+	//Memory.PrintAll()
 }
 
 // MakeReport makes a report to the server

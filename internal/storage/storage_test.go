@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/gynshu-one/go-metric-collector/internal/configs"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"github.com/stretchr/testify/assert"
 	"reflect"
@@ -9,7 +10,8 @@ import (
 )
 
 func TestValidateTypeAndValue(t *testing.T) {
-	storage := InitStorage()
+	configs.CFG.LoadConfig()
+	storage := InitServerStorage()
 
 	gaugeMetric := Metrics{
 		ID:    "TestGauge",
@@ -41,7 +43,8 @@ func TestValidateTypeAndValue(t *testing.T) {
 }
 
 func TestUpdateMetric(t *testing.T) {
-	storage := InitStorage()
+	configs.CFG.LoadConfig()
+	storage := InitServerStorage()
 
 	gaugeMetric := Metrics{
 		ID:    "TestGauge",
@@ -74,14 +77,16 @@ func TestUpdateMetric(t *testing.T) {
 }
 
 func TestCheckMetricType(t *testing.T) {
-	storage := InitStorage()
+	configs.CFG.LoadConfig()
+	storage := InitServerStorage()
 
 	assert.True(t, storage.CheckMetricType("gauge"), "Gauge should be a valid metric type")
 	assert.True(t, storage.CheckMetricType("counter"), "Counter should be a valid metric type")
 	assert.False(t, storage.CheckMetricType("invalidType"), "Invalid type should be invalid")
 }
 func TestFindMetricByName(t *testing.T) {
-	storage := InitStorage()
+	configs.CFG.LoadConfig()
+	storage := InitServerStorage()
 
 	// Test not found metric
 	_, ok := storage.FindMetricByName("NonExistent")
@@ -100,7 +105,7 @@ func TestFindMetricByName(t *testing.T) {
 }
 
 func TestRandomValue(t *testing.T) {
-	storage := InitStorage()
+	storage := InitAgentStorage()
 	storage.RandomValue()
 
 	metric, ok := storage.FindMetricByName("RandomValue")
@@ -109,7 +114,7 @@ func TestRandomValue(t *testing.T) {
 }
 
 func TestAddPollCount(t *testing.T) {
-	storage := InitStorage()
+	storage := InitAgentStorage()
 	storage.AddPollCount()
 
 	metric, ok := storage.FindMetricByName("PollCount")
@@ -123,7 +128,8 @@ func TestAddPollCount(t *testing.T) {
 }
 
 func TestCheckIfNameExists(t *testing.T) {
-	storage := InitStorage()
+	configs.CFG.LoadConfig()
+	storage := InitServerStorage()
 
 	assert.False(t, storage.CheckIfNameExists("NonExistent"), "Non-existent metric should return false")
 
@@ -137,7 +143,7 @@ func TestCheckIfNameExists(t *testing.T) {
 }
 
 func TestReadRuntime(t *testing.T) {
-	storage := InitStorage()
+	storage := InitAgentStorage()
 	storage.ReadRuntime()
 
 	memStats := &runtime.MemStats{}

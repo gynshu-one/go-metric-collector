@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/gynshu-one/go-metric-collector/internal/configs"
 	"github.com/gynshu-one/go-metric-collector/internal/storage"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"github.com/stretchr/testify/assert"
@@ -14,6 +15,7 @@ import (
 
 func setupRouter() *gin.Engine {
 	router := gin.Default()
+	configs.CFG.LoadConfig()
 	router.GET("/", HTMLAllMetrics)
 	router.GET("/live/", Live)
 
@@ -22,6 +24,7 @@ func setupRouter() *gin.Engine {
 
 	router.GET("/value/:metric_type/:metric_name", Value)
 	router.POST("/update/:metric_type/:metric_name/:metric_value", UpdateMetrics)
+	storage.Memory = storage.InitServerStorage()
 	return router
 }
 
@@ -42,9 +45,9 @@ func TestValue(t *testing.T) {
 		MType: "gauge",
 		Value: tools.Float64Ptr(2.0),
 	}
-	storage.Memory.UpdateMetric(gaugeMetric)
 
 	router := setupRouter()
+	storage.Memory.UpdateMetric(gaugeMetric)
 	jsonData, _ := json.Marshal(gaugeMetric)
 	req1 := httptest.NewRequest("POST", "/update/", bytes.NewBuffer(jsonData))
 	resp1 := httptest.NewRecorder()

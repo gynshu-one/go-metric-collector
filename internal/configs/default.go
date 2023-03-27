@@ -2,24 +2,30 @@ package configs
 
 import (
 	"fmt"
+	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
-	"strconv"
-	"strings"
+	"os"
+	"path"
+	"time"
 )
 
 type Config struct {
-	Address        string `mapstructure:"ADDRESS"`
-	PollInterval   int    `mapstructure:"POLL_INTERVAL"`
-	ReportInterval int    `mapstructure:"REPORT_INTERVAL"`
+	Address        string        `mapstructure:"ADDRESS"`
+	PollInterval   time.Duration `mapstructure:"POLL_INTERVAL"`
+	ReportInterval time.Duration `mapstructure:"REPORT_INTERVAL"`
+	StoreInterval  time.Duration `mapstructure:"STORE_INTERVAL"`
+	StoreFile      string        `mapstructure:"STORE_FILE"`
+	Restore        bool          `mapstructure:"RESTORE"`
 }
 
 var CFG = &Config{}
 
-func (config *Config) LoadConfig(file string) {
+func (config *Config) LoadConfig() {
 	// load config from environment variables
 	v := viper.New()
 	v.AutomaticEnv()
+	dir := tools.GetProjectRoot()
 	err := mapstructure.Decode(v.AllSettings(), &config)
 	if err != nil {
 		panic(fmt.Errorf("error decoding config: %s", err))
@@ -28,36 +34,27 @@ func (config *Config) LoadConfig(file string) {
 		// load
 		v.SetConfigName("app")
 		v.SetConfigType("env")
-		v.AddConfigPath(file)
+		v.AddConfigPath(dir)
 		err = v.ReadInConfig()
 		if err != nil {
 			panic(fmt.Errorf("error reading config: %s", err))
 		}
 		// Retrieve the value using the key
-		p := v.Get("POLL_INTERVAL")
-		r := v.Get("REPORT_INTERVAL")
-		// Remove the "s" for autotests
-		if strings.HasSuffix(p.(string), "s") {
-			p = strings.TrimSuffix(p.(string), "s")
-		}
-		if strings.HasSuffix(r.(string), "s") {
-			r = strings.TrimSuffix(r.(string), "s")
-		}
-		// Convert to int64
-		p, err = strconv.ParseInt(p.(string), 10, 64)
-		if err != nil {
-			panic(fmt.Errorf("error decoding config: %s", err))
-		}
-		r, err = strconv.ParseInt(r.(string), 10, 64)
-		if err != nil {
-			panic(fmt.Errorf("error decoding config: %s", err))
-		}
-		// Set the value
-		v.Set("POLL_INTERVAL", p.(int64))
-		v.Set("REPORT_INTERVAL", r.(int64))
+
 		err = v.Unmarshal(&config)
 		if err != nil {
 			panic(fmt.Errorf("error decoding config: %s", err))
+		}
+		config.StoreFile = dir + config.StoreFile
+		// get dir of the file
+		dr := path.Dir(config.StoreFile)
+		// check if dir exists
+		if _, err = os.Stat(dr); os.IsNotExist(err) {
+			// create dir
+			err = os.MkdirAll(dr, os.ModePerm)
+			if err != nil {
+				panic(fmt.Errorf("error creating dir: %s", err))
+			}
 		}
 	}
 }
