@@ -27,6 +27,7 @@ func main() {
 	router := gin.Default()
 	// change gin mode
 	gin.SetMode(gin.ReleaseMode)
+	// disable log gin
 	router.Use(cors.Default())
 
 	routers.MetricsRoute(router)

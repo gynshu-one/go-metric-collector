@@ -2,8 +2,10 @@ package tools
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func Contains(sl []string, s string) bool {
@@ -37,4 +39,11 @@ func GetProjectRoot() string {
 		cwd = filepath.Dir(cwd)
 	}
 	panic(fmt.Errorf("error getting project root"))
+}
+func ParseDuration(s string) time.Duration {
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		log.Fatalf("Error parsing duration %q: %s", s, err)
+	}
+	return d
 }
