@@ -9,11 +9,21 @@ import (
 	"testing"
 )
 
+func MakeStorage() ServerInterface {
+	configs.CFG = &configs.Config{
+		Address:       "localhost:8080",
+		StoreInterval: 10,
+		StoreFile:     "/tmp/devops-metrics-db.json",
+		Restore:       false,
+	}
+	dir := tools.GetProjectRoot()
+	// Make temp files dir absolute
+	configs.CFG.StoreFile = dir + configs.CFG.StoreFile
+	configs.CFG.InitFiles()
+	return InitServerStorage()
+}
 func TestValidateTypeAndValue(t *testing.T) {
-	configs.CFG.ReadOs()
-	storage := InitServerStorage()
-	storage.ResetAll()
-
+	storage := MakeStorage()
 	gaugeMetric := Metrics{
 		ID:    "TestGauge",
 		MType: "gauge",
@@ -44,10 +54,7 @@ func TestValidateTypeAndValue(t *testing.T) {
 }
 
 func TestUpdateMetric(t *testing.T) {
-	configs.CFG.ReadOs()
-	storage := InitServerStorage()
-	storage.ResetAll()
-
+	storage := MakeStorage()
 	gaugeMetric := Metrics{
 		ID:    "TestGauge",
 		MType: "gauge",
@@ -79,19 +86,13 @@ func TestUpdateMetric(t *testing.T) {
 }
 
 func TestCheckMetricType(t *testing.T) {
-	configs.CFG.ReadOs()
-	storage := InitServerStorage()
-	storage.ResetAll()
-
+	storage := MakeStorage()
 	assert.True(t, storage.CheckMetricType("gauge"), "Gauge should be a valid metric type")
 	assert.True(t, storage.CheckMetricType("counter"), "Counter should be a valid metric type")
 	assert.False(t, storage.CheckMetricType("invalidType"), "Invalid type should be invalid")
 }
 func TestFindMetricByName(t *testing.T) {
-	configs.CFG.ReadOs()
-	storage := InitServerStorage()
-	storage.ResetAll()
-
+	storage := MakeStorage()
 	// Test not found metric
 	_, ok := storage.FindMetricByName("NonExistent")
 	assert.False(t, ok, "Non-existent metric should not be found")
@@ -132,10 +133,7 @@ func TestAddPollCount(t *testing.T) {
 }
 
 func TestCheckIfNameExists(t *testing.T) {
-	configs.CFG.ReadOs()
-	storage := InitServerStorage()
-	storage.ResetAll()
-
+	storage := MakeStorage()
 	assert.False(t, storage.CheckIfNameExists("NonExistent"), "Non-existent metric should return false")
 
 	gaugeMetric := Metrics{

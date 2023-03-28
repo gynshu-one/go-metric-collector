@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/fatih/color"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/gynshu-one/go-metric-collector/internal/configs"
@@ -16,17 +15,6 @@ import (
 	"time"
 )
 
-/*
-Аргументы сервера:
-ADDRESS через флаг a=<ЗНАЧЕНИЕ>,
-RESTORE через флаг r=<ЗНАЧЕНИЕ>,
-STORE_INTERVAL через флаг i=<ЗНАЧЕНИЕ>,
-STORE_FILE через флаг f=<ЗНАЧЕНИЕ>.
-Аргументы агента:
-ADDRESS через флаг a=<ЗНАЧЕНИЕ>,
-REPORT_INTERVAL через флаг r=<ЗНАЧЕНИЕ>,
-POLL_INTERVAL через флаг p=<ЗНАЧЕНИЕ>.
-*/
 func init() {
 	// Order matters if we want to prioritize ENV over flags
 	configs.CFG.ReadServerFlags()
@@ -34,7 +22,7 @@ func init() {
 	// Then init files
 	configs.CFG.InitFiles()
 	dock := os.Getenv("DOCKER")
-	color.Cyan("Configs: %+v", configs.CFG)
+	//color.Cyan("Configs: %+v", configs.CFG)
 	if dock != "" {
 		configs.CFG.Address = "0.0.0.0:8080"
 	}

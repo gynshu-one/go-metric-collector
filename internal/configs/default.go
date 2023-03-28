@@ -61,7 +61,7 @@ func (config *Config) InitFiles() {
 	}
 }
 
-// ReadFlags reads config from flags Run this first
+// ReadServerFlags reads config from flags Run this first
 func (config *Config) ReadServerFlags() {
 	// read flags
 	flag.StringVar(&config.Address, "a", "localhost:8080", "server address")

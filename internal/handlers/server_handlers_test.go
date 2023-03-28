@@ -14,23 +14,32 @@ import (
 )
 
 func setupRouter() *gin.Engine {
-	router := gin.Default()
-	configs.CFG.ReadOs()
-	router.GET("/", HTMLAllMetrics)
-	router.GET("/live/", Live)
+	configs.CFG = &configs.Config{
+		Address:       "localhost:8080",
+		StoreInterval: 10,
+		StoreFile:     "/tmp/devops-metrics-db.json",
+		Restore:       false,
+	}
+	dir := tools.GetProjectRoot()
+	// Make temp files dir absolute
+	configs.CFG.StoreFile = dir + configs.CFG.StoreFile
+	configs.CFG.InitFiles()
+	r := gin.Default()
+	r.GET("/", HTMLAllMetrics)
+	r.GET("/live/", Live)
 
-	router.POST("/value/", ValueJSON)
-	router.POST("/update/", UpdateMetricsJSON)
+	r.POST("/value/", ValueJSON)
+	r.POST("/update/", UpdateMetricsJSON)
 
-	router.GET("/value/:metric_type/:metric_name", Value)
-	router.POST("/update/:metric_type/:metric_name/:metric_value", UpdateMetrics)
+	r.GET("/value/:metric_type/:metric_name", Value)
+	r.POST("/update/:metric_type/:metric_name/:metric_value", UpdateMetrics)
 	storage.Memory = storage.InitServerStorage()
-	return router
+	return r
 }
 
-func TestLive(t *testing.T) {
-	router := setupRouter()
+var router = setupRouter()
 
+func TestLive(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/live/", nil)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
@@ -45,8 +54,6 @@ func TestValue(t *testing.T) {
 		MType: "gauge",
 		Value: tools.Float64Ptr(2.0),
 	}
-
-	router := setupRouter()
 	storage.Memory.UpdateMetric(gaugeMetric)
 	jsonData, _ := json.Marshal(gaugeMetric)
 	req1 := httptest.NewRequest("POST", "/update/", bytes.NewBuffer(jsonData))
@@ -68,8 +75,6 @@ func TestValue(t *testing.T) {
 }
 
 func TestValueJson(t *testing.T) {
-	router := setupRouter()
-
 	gaugeMetric := storage.Metrics{
 		ID:    "TestGauge",
 		MType: "gauge",
@@ -96,8 +101,6 @@ func TestValueJson(t *testing.T) {
 }
 
 func TestUpdateMetricsJson(t *testing.T) {
-	router := setupRouter()
-
 	gaugeMetric := storage.Metrics{
 		ID:    "TestGauge",
 		MType: "gauge",
@@ -121,8 +124,6 @@ func TestUpdateMetricsJson(t *testing.T) {
 }
 
 func TestUpdateMetrics(t *testing.T) {
-	router := setupRouter()
-
 	req, _ := http.NewRequest("POST", "/update/gauge/TestGauge/4", nil)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
