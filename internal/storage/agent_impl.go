@@ -26,12 +26,12 @@ type AgentInterface interface {
 type ApplyToAll func(Metrics)
 
 func InitAgentStorage() AgentInterface {
-	return MemStorage{
+	return &MemStorage{
 		Collection: &sync.Map{},
 	}
 }
 
-func (M MemStorage) RandomValue() {
+func (M *MemStorage) RandomValue() {
 	act, load := M.Collection.LoadOrStore("RandomValue", Metrics{
 		ID:    "RandomValue",
 		MType: "gauge",
@@ -44,7 +44,7 @@ func (M MemStorage) RandomValue() {
 }
 
 // AddPollCount adds 1 to the PollCount metric if not presented creates it
-func (M MemStorage) AddPollCount() {
+func (M *MemStorage) AddPollCount() {
 	act, load := M.Collection.LoadOrStore("PollCount", Metrics{
 		ID:    "PollCount",
 		MType: "counter",
@@ -57,7 +57,7 @@ func (M MemStorage) AddPollCount() {
 }
 
 // ReadRuntime reads all values of runtime.MemStats and stores it in MemStorage
-func (M MemStorage) ReadRuntime() {
+func (M *MemStorage) ReadRuntime() {
 	memStats := &runtime.MemStats{}
 	runtime.ReadMemStats(memStats)
 	input := reflect.ValueOf(memStats).Elem()
@@ -87,7 +87,7 @@ func (M MemStorage) ReadRuntime() {
 // Default exclusion is "PauseNs", "PauseEnd", "EnableGC", "DebugGC", "BySize"
 // Additional exclusion can be passed as a variadic argument
 // This function does not change the value of any metric
-func (M MemStorage) ApplyToAll(f ApplyToAll, exclude ...string) {
+func (M *MemStorage) ApplyToAll(f ApplyToAll, exclude ...string) {
 	var defaultExclusion = []string{"PauseNs", "PauseEnd", "EnableGC", "DebugGC", "BySize"}
 	defaultExclusion = append(defaultExclusion, exclude...)
 	M.Collection.Range(func(key, value interface{}) bool {
@@ -99,7 +99,7 @@ func (M MemStorage) ApplyToAll(f ApplyToAll, exclude ...string) {
 }
 
 // PrintAll prints all metrics in MemStorage
-func (M MemStorage) PrintAll() {
+func (M *MemStorage) PrintAll() {
 	color.Green("Metric collected so far:\n" +
 		"----------------------------------------\n")
 	M.ApplyToAll(func(m Metrics) {
@@ -112,7 +112,7 @@ func (M MemStorage) PrintAll() {
 	color.Green("----------------------------------------\n")
 }
 
-func (M MemStorage) GetAll() []Metrics {
+func (M *MemStorage) GetAll() []Metrics {
 	var metrics []Metrics
 	M.ApplyToAll(func(m Metrics) {
 		metrics = append(metrics, m)

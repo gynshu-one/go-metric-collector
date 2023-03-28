@@ -14,30 +14,20 @@ var Memory ServerInterface
 
 type ServerInterface interface {
 	StoreEverythingToFile() error
-
 	LoadEverythingFromFile() error
-
 	FindMetricByName(name string) (Metrics, bool)
-
 	CheckMetricType(tp string) bool
-
 	UpdateMetric(m Metrics) Metrics
-
 	ValidateValue(m Metrics) bool
-
 	ValidateTypeAndValue(m Metrics) bool
-
 	CheckIfNameExists(name string) bool
-
 	GenerateHTMLTable() []string
-
 	GetAll() []Metrics
-
 	ResetAll()
 }
 
 func InitServerStorage() ServerInterface {
-	mem := MemStorage{
+	mem := &MemStorage{
 		Collection: &sync.Map{},
 	}
 	if configs.CFG.Restore {
@@ -62,10 +52,12 @@ func InitServerStorage() ServerInterface {
 	return mem
 
 }
-func (M MemStorage) ResetAll() {
+
+// ResetAll resets all metrics. Used for testing
+func (M *MemStorage) ResetAll() {
 	M.Collection = &sync.Map{}
 }
-func (M MemStorage) StoreEverythingToFile() error {
+func (M *MemStorage) StoreEverythingToFile() error {
 	allMetrics := M.GetAll()
 	// save to jsonData file
 	jsonData, err := json.Marshal(allMetrics)
@@ -80,7 +72,7 @@ func (M MemStorage) StoreEverythingToFile() error {
 	return nil
 	//path := configs.CFG.StoreFile
 }
-func (M MemStorage) LoadEverythingFromFile() error {
+func (M *MemStorage) LoadEverythingFromFile() error {
 	file, err := os.OpenFile(configs.CFG.StoreFile, os.O_RDONLY, 0666)
 	if err != nil {
 		log.Printf("Nothing to resore from storage file: %v", err)
@@ -100,13 +92,13 @@ func (M MemStorage) LoadEverythingFromFile() error {
 	return nil
 }
 
-func (M MemStorage) ValidateTypeAndValue(m Metrics) bool {
+func (M *MemStorage) ValidateTypeAndValue(m Metrics) bool {
 	if (m.MType == "gauge" && m.Value != nil) || (m.MType == "counter" && m.Delta != nil) {
 		return true
 	}
 	return false
 }
-func (M MemStorage) ValidateValue(m Metrics) bool {
+func (M *MemStorage) ValidateValue(m Metrics) bool {
 	if m.Value == nil && m.Delta == nil {
 		return false
 	}
@@ -115,7 +107,7 @@ func (M MemStorage) ValidateValue(m Metrics) bool {
 
 // FindMetricByName finds a metric by name and returns its value
 // If the metric is not found, it returns false
-func (M MemStorage) FindMetricByName(name string) (Metrics, bool) {
+func (M *MemStorage) FindMetricByName(name string) (Metrics, bool) {
 	m, ok := M.Collection.Load(name)
 	if !ok {
 		return Metrics{}, false
@@ -124,7 +116,7 @@ func (M MemStorage) FindMetricByName(name string) (Metrics, bool) {
 }
 
 // CheckMetricType checks if the metric type is presented in MemStorage
-func (M MemStorage) CheckMetricType(tp string) bool {
+func (M *MemStorage) CheckMetricType(tp string) bool {
 	switch tp {
 	case "gauge", "counter":
 		return true
@@ -134,7 +126,7 @@ func (M MemStorage) CheckMetricType(tp string) bool {
 }
 
 // UpdateMetric adds single metrics to MemStorage
-func (M MemStorage) UpdateMetric(m Metrics) Metrics {
+func (M *MemStorage) UpdateMetric(m Metrics) Metrics {
 	switch m.MType {
 	case "gauge":
 		if m.Value != nil {
@@ -166,12 +158,12 @@ func (M MemStorage) UpdateMetric(m Metrics) Metrics {
 }
 
 // CheckIfNameExists checks if a metric name exists in MemStorage
-func (M MemStorage) CheckIfNameExists(name string) bool {
+func (M *MemStorage) CheckIfNameExists(name string) bool {
 	_, ok := M.Collection.Load(name)
 	return ok
 }
 
-func (M MemStorage) GenerateHTMLTable() []string {
+func (M *MemStorage) GenerateHTMLTable() []string {
 	var table []string
 	M.ApplyToAll(func(m Metrics) {
 		val := ""

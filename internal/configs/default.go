@@ -37,7 +37,9 @@ func (config *Config) LoadConfig() {
 	if err != nil {
 		panic(fmt.Errorf("error decoding config: %s", err))
 	}
-	fmt.Printf("\nconfig file: %v\n", config)
+
+	// I know this is bad I could use v.AutomaticEnv(). What if os env does not have all vars
+	// but some of them
 	if os.Getenv("ADDRESS") != "" {
 		config.Address = os.Getenv("ADDRESS")
 	}
@@ -57,7 +59,6 @@ func (config *Config) LoadConfig() {
 		config.Restore = strings.Contains(os.Getenv("RESTORE"), "true")
 	}
 	config.StoreFile = dir + config.StoreFile
-	fmt.Printf("\nconfig os: %v\n", config)
 	// get dir of the file
 	dr := path.Dir(config.StoreFile)
 	// check if dir exists
