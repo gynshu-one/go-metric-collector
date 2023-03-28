@@ -10,7 +10,7 @@ import (
 )
 
 func TestValidateTypeAndValue(t *testing.T) {
-	configs.CFG.LoadConfig()
+	configs.CFG.ReadOs()
 	storage := InitServerStorage()
 	storage.ResetAll()
 
@@ -44,7 +44,7 @@ func TestValidateTypeAndValue(t *testing.T) {
 }
 
 func TestUpdateMetric(t *testing.T) {
-	configs.CFG.LoadConfig()
+	configs.CFG.ReadOs()
 	storage := InitServerStorage()
 	storage.ResetAll()
 
@@ -79,7 +79,7 @@ func TestUpdateMetric(t *testing.T) {
 }
 
 func TestCheckMetricType(t *testing.T) {
-	configs.CFG.LoadConfig()
+	configs.CFG.ReadOs()
 	storage := InitServerStorage()
 	storage.ResetAll()
 
@@ -88,7 +88,7 @@ func TestCheckMetricType(t *testing.T) {
 	assert.False(t, storage.CheckMetricType("invalidType"), "Invalid type should be invalid")
 }
 func TestFindMetricByName(t *testing.T) {
-	configs.CFG.LoadConfig()
+	configs.CFG.ReadOs()
 	storage := InitServerStorage()
 	storage.ResetAll()
 
@@ -132,7 +132,7 @@ func TestAddPollCount(t *testing.T) {
 }
 
 func TestCheckIfNameExists(t *testing.T) {
-	configs.CFG.LoadConfig()
+	configs.CFG.ReadOs()
 	storage := InitServerStorage()
 	storage.ResetAll()
 

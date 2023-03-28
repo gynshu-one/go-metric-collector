@@ -1,12 +1,12 @@
 package configs
 
 import (
+	"flag"
 	"fmt"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"github.com/spf13/viper"
 	"os"
 	"path"
-	"strings"
 	"time"
 )
 
@@ -21,52 +21,60 @@ type Config struct {
 
 var CFG = &Config{}
 
-func (config *Config) LoadConfig() {
+// ReadOs reads config from environment variables
+func (config *Config) ReadOs() {
 	// load config from environment variables
 	v := viper.New()
+	v.AutomaticEnv()
+	if v.Get("ADDRESS") != nil {
+		config.Address = v.GetString("ADDRESS")
+	}
+	if v.Get("POLL_INTERVAL") != nil {
+		config.PollInterval = v.GetDuration("POLL_INTERVAL")
+	}
+	if v.Get("REPORT_INTERVAL") != nil {
+		config.ReportInterval = v.GetDuration("REPORT_INTERVAL")
+	}
+	if v.Get("STORE_INTERVAL") != nil {
+		config.StoreInterval = v.GetDuration("STORE_INTERVAL")
+	}
+	if v.Get("STORE_FILE") != nil {
+		config.StoreFile = v.GetString("STORE_FILE")
+	}
+	if v.Get("RESTORE") != nil {
+		config.Restore = v.GetBool("RESTORE")
+	}
+}
+func (config *Config) InitFiles() {
 	dir := tools.GetProjectRoot()
-	v.SetConfigName("app")
-	v.SetConfigType("env")
-	v.AddConfigPath(dir)
-	err := v.ReadInConfig()
-	if err != nil {
-		panic(fmt.Errorf("error reading config: %s", err))
-	}
-	// Retrieve the value using the key
-	err = v.Unmarshal(&config)
-	if err != nil {
-		panic(fmt.Errorf("error decoding config: %s", err))
-	}
-
-	// I know this is bad I could use v.AutomaticEnv(). What if os env does not have all vars
-	// but some of them
-	if os.Getenv("ADDRESS") != "" {
-		config.Address = os.Getenv("ADDRESS")
-	}
-	if os.Getenv("POLL_INTERVAL") != "" {
-		config.PollInterval = tools.ParseDuration(os.Getenv("POLL_INTERVAL"))
-	}
-	if os.Getenv("REPORT_INTERVAL") != "" {
-		config.ReportInterval = tools.ParseDuration(os.Getenv("REPORT_INTERVAL"))
-	}
-	if os.Getenv("STORE_INTERVAL") != "" {
-		config.StoreInterval = tools.ParseDuration(os.Getenv("STORE_INTERVAL"))
-	}
-	if os.Getenv("STORE_FILE") != "" {
-		config.StoreFile = os.Getenv("STORE_FILE")
-	}
-	if os.Getenv("RESTORE") != "" {
-		config.Restore = strings.Contains(os.Getenv("RESTORE"), "true")
-	}
+	// Make temp files dir absolute
 	config.StoreFile = dir + config.StoreFile
 	// get dir of the file
 	dr := path.Dir(config.StoreFile)
 	// check if dir exists
-	if _, err = os.Stat(dr); os.IsNotExist(err) {
+	if _, err := os.Stat(dr); os.IsNotExist(err) {
 		// create dir
 		err = os.MkdirAll(dr, os.ModePerm)
 		if err != nil {
 			panic(fmt.Errorf("error creating dir: %s", err))
 		}
 	}
+}
+
+// ReadFlags reads config from flags Run this first
+func (config *Config) ReadServerFlags() {
+	// read flags
+	flag.StringVar(&config.Address, "a", "localhost:8080", "server address")
+	flag.DurationVar(&config.StoreInterval, "i", 300*time.Second, "store interval")
+	flag.StringVar(&config.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")
+	flag.BoolVar(&config.Restore, "r", true, "restore")
+	flag.Parse()
+}
+
+func (config *Config) ReadAgentFlags() {
+	// read flags
+	flag.StringVar(&config.Address, "a", "localhost:8080", "server address")
+	flag.DurationVar(&config.PollInterval, "p", 2*time.Second, "poll interval")
+	flag.DurationVar(&config.ReportInterval, "r", 10*time.Second, "report interval")
+	flag.Parse()
 }

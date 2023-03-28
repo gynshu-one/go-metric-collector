@@ -15,7 +15,7 @@ import (
 
 func setupRouter() *gin.Engine {
 	router := gin.Default()
-	configs.CFG.LoadConfig()
+	configs.CFG.ReadOs()
 	router.GET("/", HTMLAllMetrics)
 	router.GET("/live/", Live)
 
