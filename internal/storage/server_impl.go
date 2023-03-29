@@ -137,7 +137,7 @@ func (M *MemStorage) UpdateMetric(m Metrics) Metrics {
 			act, load := M.Collection.LoadOrStore(m.ID, m)
 			if load {
 				*act.(Metrics).Delta += *m.Delta
-				M.Collection.Swap(m.ID, act)
+				M.Collection.Store(m.ID, act)
 			}
 		}
 	}

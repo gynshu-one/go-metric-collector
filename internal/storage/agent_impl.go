@@ -39,7 +39,7 @@ func (M *MemStorage) RandomValue() {
 	})
 	if load {
 		*act.(Metrics).Value = rand.Float64()
-		M.Collection.Swap("RandomValue", act)
+		M.Collection.Store("RandomValue", act)
 	}
 }
 
@@ -52,7 +52,7 @@ func (M *MemStorage) AddPollCount() {
 	})
 	if load {
 		*act.(Metrics).Delta += 1
-		M.Collection.Swap("PollCount", act)
+		M.Collection.Store("PollCount", act)
 	}
 }
 
