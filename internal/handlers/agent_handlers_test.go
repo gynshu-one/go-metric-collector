@@ -17,7 +17,6 @@ func TestNewAgent(t *testing.T) {
 	serverAddr := "http://localhost:8080"
 
 	agent := NewAgent(pollInterval, reportInterval, serverAddr)
-
 	assert.NotNil(t, agent)
 	assert.Equal(t, pollInterval, agent.PollInterval)
 	assert.Equal(t, reportInterval, agent.ReportInterval)

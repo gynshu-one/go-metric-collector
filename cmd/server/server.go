@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/gynshu-one/go-metric-collector/internal/configs"
+	"github.com/gynshu-one/go-metric-collector/internal/middlwares"
 	"github.com/gynshu-one/go-metric-collector/internal/routers"
 	"github.com/gynshu-one/go-metric-collector/internal/storage"
 	"log"
@@ -32,12 +34,10 @@ func init() {
 
 // Server that receives runtime metrics from the agent. with a configurable PollInterval.
 func main() {
-	router := gin.Default()
-	// Change gin mode
 	//gin.SetMode(gin.ReleaseMode)
+	router := gin.Default()
 	// Disable log gin
-	router.Use(cors.Default())
-
+	router.Use(cors.Default(), middlwares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression))
 	routers.MetricsRoute(router)
 	// These two lines written to pass autotests (wrong code, redirect)
 	// -------------------------------
@@ -48,6 +48,7 @@ func main() {
 		Addr:    configs.CFG.Address,
 		Handler: router,
 	}
+
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)

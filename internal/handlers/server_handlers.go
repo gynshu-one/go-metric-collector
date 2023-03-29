@@ -80,6 +80,7 @@ func HTMLAllMetrics(ctx *gin.Context) {
 		html += v
 	}
 	html += "</tbody></table></body></html>"
+
 	ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
 }
 
