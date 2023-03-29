@@ -22,6 +22,7 @@ type Config struct {
 var CFG = &Config{}
 
 // ReadOs reads config from environment variables
+// This func will replace Config parameters if any presented in os environment vars
 func (config *Config) ReadOs() {
 	// load config from environment variables
 	v := viper.New()
@@ -45,6 +46,8 @@ func (config *Config) ReadOs() {
 		config.Restore = v.GetBool("RESTORE")
 	}
 }
+
+// InitFiles creates all necessary files and folders for server storage
 func (config *Config) InitFiles() {
 	dir := tools.GetProjectRoot()
 	// Make temp files dir absolute
@@ -71,6 +74,7 @@ func (config *Config) ReadServerFlags() {
 	flag.Parse()
 }
 
+// ReadAgentFlags separate function required bec of similar variable names required for agent and server
 func (config *Config) ReadAgentFlags() {
 	// read flags
 	flag.StringVar(&config.Address, "a", "localhost:8080", "server address")

@@ -28,7 +28,6 @@ func NewAgent(pollInterval, reportInterval time.Duration, serverAddr string) *Ag
 
 // Poll polls runtime Metrics and reports them to the server by calling Report()
 func (a *Agent) Poll() {
-	// ReadRuntime runtime Metrics
 	go func() {
 		for {
 			Memory.AddPollCount()
@@ -37,7 +36,6 @@ func (a *Agent) Poll() {
 			time.Sleep(a.PollInterval)
 		}
 	}()
-	// Report
 	for {
 		time.Sleep(a.ReportInterval)
 		go func() {
@@ -52,7 +50,6 @@ func (a *Agent) Report() {
 	// check if the metric is presented in MemStorage
 
 	Memory.ApplyToAll(a.MakeReport)
-	//Memory.PrintAll()
 }
 
 // MakeReport makes a report to the server

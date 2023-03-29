@@ -6,7 +6,7 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/gynshu-one/go-metric-collector/internal/configs"
-	"github.com/gynshu-one/go-metric-collector/internal/middlwares"
+	"github.com/gynshu-one/go-metric-collector/internal/middlewares"
 	"github.com/gynshu-one/go-metric-collector/internal/routers"
 	"github.com/gynshu-one/go-metric-collector/internal/storage"
 	"log"
@@ -23,11 +23,6 @@ func init() {
 	configs.CFG.ReadOs()
 	// Then init files
 	configs.CFG.InitFiles()
-	dock := os.Getenv("DOCKER")
-	//color.Cyan("Configs: %+v", configs.CFG)
-	if dock != "" {
-		configs.CFG.Address = "0.0.0.0:8080"
-	}
 	storage.Memory = storage.InitServerStorage()
 
 }
@@ -36,8 +31,8 @@ func init() {
 func main() {
 	//gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
-	// Disable log gin
-	router.Use(cors.Default(), middlwares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression))
+	// I don't know if MiscDecompress() middleware even required for this increment
+	router.Use(cors.Default(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression))
 	routers.MetricsRoute(router)
 	// These two lines written to pass autotests (wrong code, redirect)
 	// -------------------------------

@@ -14,7 +14,6 @@ func Live(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Server is live"})
 }
 func ValueJSON(ctx *gin.Context) {
-	// must get storage.Metrics is json body of request
 	var m storage.Metrics
 	body := ctx.Request.Body
 	defer body.Close()
@@ -29,7 +28,6 @@ func ValueJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotImplemented, gin.H{"error": "Invalid metric type"})
 		return
 	}
-	// Add metric to storage
 	newM, ok := storage.Memory.FindMetricByName(m.ID)
 	if !ok {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Metric not found"})
@@ -56,17 +54,14 @@ func UpdateMetricsJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotImplemented, gin.H{"error": "Invalid metric type"})
 		return
 	}
-	// check if metric type and value are valid
 	if !storage.Memory.ValidateTypeAndValue(m) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Metric type and value mismatch"})
 		return
 	}
-	// check if metric value is valid
 	if !storage.Memory.ValidateValue(m) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric value"})
 		return
 	}
-	// Add metric to storage
 	newM := storage.Memory.UpdateMetric(m)
 	ctx.JSON(http.StatusOK, newM)
 }
@@ -85,12 +80,7 @@ func HTMLAllMetrics(ctx *gin.Context) {
 }
 
 func Value(ctx *gin.Context) {
-	//metricType := ctx.Param("metric_type")
 	metricName := ctx.Param("metric_name")
-
-	// This is because the metric finder is case-sensitive
-	//metricType = strings.ToLower(metricType)
-
 	m, ok := storage.Memory.FindMetricByName(metricName)
 	if !ok {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Type or name not found"})

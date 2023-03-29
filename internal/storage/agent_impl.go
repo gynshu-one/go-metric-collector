@@ -32,15 +32,11 @@ func InitAgentStorage() AgentInterface {
 }
 
 func (M *MemStorage) RandomValue() {
-	act, load := M.Collection.LoadOrStore("RandomValue", Metrics{
+	M.Collection.Store("RandomValue", Metrics{
 		ID:    "RandomValue",
 		MType: "gauge",
 		Value: tools.Float64Ptr(rand.Float64()),
 	})
-	if load {
-		*act.(Metrics).Value = rand.Float64()
-		M.Collection.Store("RandomValue", act)
-	}
 }
 
 // AddPollCount adds 1 to the PollCount metric if not presented creates it
