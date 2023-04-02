@@ -1,6 +1,19 @@
 package storage
 
-import "sync"
+import (
+	"sync"
+)
+
+const (
+	GaugeType             = "gauge"
+	CounterType           = "counter"
+	InvalidType           = "invalid type"
+	TypeValueMismatch     = "type and value mismatch"
+	NameTypeMismatch      = "name and type you have sent mismatch with the one in the storage"
+	MetricTypeNotProvided = "metric type not provided"
+	MetricNameNotProvided = "metric name not provided"
+	MetricNotFound        = "metric not found"
+)
 
 type Metrics struct {
 	ID    string   `json:"id"`
@@ -13,5 +26,14 @@ type Metrics struct {
 // It Should be initialized using InitAgentStorage() before using
 // because it has a predefined set of metrics
 type MemStorage struct {
-	Collection *sync.Map
+	repo sync.Map
 }
+
+type MemActions interface {
+	Get(m *Metrics) *Metrics
+	Set(m *Metrics) *Metrics
+	ApplyToAll(f ApplyToAll, exclude ...string)
+	Dump()
+	Restore()
+}
+type ApplyToAll func(*Metrics)

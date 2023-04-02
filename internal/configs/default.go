@@ -2,9 +2,8 @@ package configs
 
 import (
 	"flag"
-	"fmt"
-	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"github.com/spf13/viper"
+	"log"
 	"os"
 	"path"
 	"time"
@@ -49,9 +48,6 @@ func (config *Config) ReadOs() {
 
 // InitFiles creates all necessary files and folders for server storage
 func (config *Config) InitFiles() {
-	dir := tools.GetProjectRoot()
-	// Make temp files dir absolute
-	config.StoreFile = dir + config.StoreFile
 	// get dir of the file
 	dr := path.Dir(config.StoreFile)
 	// check if dir exists
@@ -59,7 +55,7 @@ func (config *Config) InitFiles() {
 		// create dir
 		err = os.MkdirAll(dr, os.ModePerm)
 		if err != nil {
-			panic(fmt.Errorf("error creating dir: %s", err))
+			log.Fatal("error creating dir: ", err)
 		}
 	}
 }

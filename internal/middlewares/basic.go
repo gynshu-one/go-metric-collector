@@ -7,20 +7,22 @@ import (
 	"fmt"
 	"github.com/andybalholm/brotli"
 	"github.com/gin-gonic/gin"
+	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"io"
 	"net/http"
+	"strings"
 )
 
 func MiscDecompress() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		encoding := c.Request.Header.Get("Content-Encoding")
-		if encoding != "" {
-			switch encoding {
-			//case "gzip":
-			//	c.Request = deCompressGzip(c.Request)
-			case "deflate":
+		encodings := strings.Split(encoding, ",")
+		if len(encodings) > 0 {
+			if tools.Contains(encodings, "gzip") {
+				c.Request = deCompressGzip(c.Request)
+			} else if tools.Contains(encodings, "deflate") {
 				c.Request = deCompressDeflate(c.Request)
-			case "br":
+			} else if tools.Contains(encodings, "br") {
 				c.Request = deCompressBr(c.Request)
 			}
 		}
@@ -107,21 +109,5 @@ func decompressGzip(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed decompress data: %v", err)
 	}
 
-	return b.Bytes(), nil
-}
-func compressDeflate(data []byte) ([]byte, error) {
-	var b bytes.Buffer
-	w, err := flate.NewWriter(&b, flate.BestCompression)
-	if err != nil {
-		return nil, fmt.Errorf("failed init compress writer: %v", err)
-	}
-	_, err = w.Write(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed write data to compress temporary buffer: %v", err)
-	}
-	err = w.Close()
-	if err != nil {
-		return nil, fmt.Errorf("failed compress data: %v", err)
-	}
 	return b.Bytes(), nil
 }

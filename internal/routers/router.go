@@ -5,13 +5,13 @@ import (
 	"github.com/gynshu-one/go-metric-collector/internal/handlers"
 )
 
-func MetricsRoute(router *gin.Engine) {
-	router.GET("/", handlers.HTMLAllMetrics)
-	router.GET("/live/", handlers.Live)
+func MetricsRoute(router *gin.Engine, handler *handlers.ServerHandler) {
+	router.GET("/", handler.HTMLAllMetrics)
+	router.GET("/live/", handler.Live)
 
-	router.POST("/value/", handlers.ValueJSON)
-	router.POST("/update/", handlers.UpdateMetricsJSON)
+	router.POST("/value/", handler.ValueJSON)
+	router.POST("/update/", handler.UpdateMetricsJSON)
 
-	router.GET("/value/:metric_type/:metric_name", handlers.Value)
-	router.POST("/update/:metric_type/:metric_name/:metric_value", handlers.UpdateMetrics)
+	router.GET("/value/:metric_type/:metric_name", handler.Value)
+	router.POST("/update/:metric_type/:metric_name/:metric_value", handler.UpdateMetrics)
 }

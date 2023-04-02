@@ -14,7 +14,6 @@ func init() {
 	configs.CFG.InitFiles()
 	configs.CFG.Address = "http://" + configs.CFG.Address
 	color.Cyan("Configs: %+v", configs.CFG)
-
 }
 func main() {
 	agent := handlers.NewAgent(configs.CFG.PollInterval,
@@ -22,5 +21,5 @@ func main() {
 		configs.CFG.Address)
 
 	// Start the agent
-	agent.Poll()
+	agent.Start()
 }
