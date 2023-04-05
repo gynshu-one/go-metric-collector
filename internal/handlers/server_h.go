@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -44,7 +45,7 @@ func (s *ServerHandler) ValueJSON(ctx *gin.Context) {
 	defer body.Close()
 	err := json.NewDecoder(body).Decode(&m)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Invalid metric"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
 		return
 	}
 	err = getPreCheck(&m)
@@ -73,17 +74,17 @@ func (s *ServerHandler) Value(ctx *gin.Context) {
 	if val == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": storage.MetricNotFound})
 		return
-	} else {
-		if val.Value != nil {
-			floatVal := *val.Value
-			floatStr := strconv.FormatFloat(floatVal, 'f', 3, 64)
-			ctx.Data(http.StatusOK, "text/plain", []byte(floatStr))
-		} else if val.Delta != nil {
-			intDelta := *val.Delta
-			intStr := strconv.FormatInt(intDelta, 10)
-			ctx.Data(http.StatusOK, "text/plain", []byte(intStr))
-		}
 	}
+	if val.Value != nil {
+		floatVal := *val.Value
+		floatStr := strconv.FormatFloat(floatVal, 'f', 3, 64)
+		ctx.Data(http.StatusOK, "text/plain", []byte(floatStr))
+	} else if val.Delta != nil {
+		intDelta := *val.Delta
+		intStr := strconv.FormatInt(intDelta, 10)
+		ctx.Data(http.StatusOK, "text/plain", []byte(intStr))
+	}
+
 }
 func (s *ServerHandler) UpdateMetricsJSON(ctx *gin.Context) {
 	var m storage.Metrics
@@ -154,11 +155,11 @@ func (s *ServerHandler) HTMLAllMetrics(ctx *gin.Context) {
 	body := generateHTMLTable(s.Memory)
 	// Sort the table by type, name, so it's easier to read when page updates
 	sort.Strings(body)
-	html := "<html><head><title>Metrics</title></head><body><table><tbody><tr><th>Type</th><th>Name</th><th>Value</th></tr>"
+	var sb strings.Builder
+	sb.WriteString("<html><head><title>Metrics</title></head><body><table><tbody><tr><th>Type</th><th>Name</th><th>Value</th></tr>")
 	for _, v := range body {
-		html += v
+		sb.WriteString(v)
 	}
-	html += "</tbody></table></body></html>"
-
-	ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
+	sb.WriteString("</tbody></table></body></html>")
+	ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(sb.String()))
 }
