@@ -70,7 +70,7 @@ func (config *Config) ReadServerFlags() {
 	flag.StringVar(&config.Address, "a", "localhost:8080", "server address")
 	flag.DurationVar(&config.StoreInterval, "i", 300*time.Second, "store interval")
 	flag.StringVar(&config.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")
-	flag.StringVar(&config.Key, "k", "123", "hash key")
+	flag.StringVar(&config.Key, "k", "", "hash key")
 	flag.BoolVar(&config.Restore, "r", true, "restore")
 	flag.Parse()
 }

@@ -43,15 +43,15 @@ func setPreCheck(m *storage.Metrics) error {
 	}
 
 	// Hash part
-	if configs.CFG.Key == "" && m.Hash != "" {
-		return errors.New(storage.KeyNotProvided)
-	} else if configs.CFG.Key != "" && m.Hash == "" {
-		return errors.New(storage.HashNotProvided)
-	}
-	inputHash := m.Hash
-	m.CalculateAndWriteHash()
-	if !hmac.Equal([]byte(inputHash), []byte(m.Hash)) {
-		return errors.New(storage.InvalidHash)
+	if configs.CFG.Key != "" {
+		inputHash := m.Hash
+		if inputHash == "" {
+			return errors.New(storage.HashNotProvided)
+		}
+		m.CalculateAndWriteHash()
+		if !hmac.Equal([]byte(inputHash), []byte(m.Hash)) {
+			return errors.New(storage.InvalidHash)
+		}
 	}
 	return nil
 }
@@ -60,7 +60,7 @@ func handleCustomError(ctx *gin.Context, err error) {
 	case storage.InvalidType:
 		ctx.JSON(http.StatusNotImplemented, gin.H{"error": err.Error()})
 		return
-	case storage.TypeValueMismatch:
+	case storage.TypeValueMismatch, storage.InvalidHash:
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	default:

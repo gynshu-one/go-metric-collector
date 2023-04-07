@@ -15,7 +15,6 @@ const (
 	MetricNotFound        = "metric not found"
 	InvalidHash           = "invalid hash"
 	HashNotProvided       = "env var KEY is set but hash is missing"
-	KeyNotProvided        = "env var KEY is not set but hash is provided"
 )
 
 type Metrics struct {
