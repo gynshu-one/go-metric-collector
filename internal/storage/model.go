@@ -13,6 +13,9 @@ const (
 	MetricTypeNotProvided = "metric type not provided"
 	MetricNameNotProvided = "metric name not provided"
 	MetricNotFound        = "metric not found"
+	InvalidHash           = "invalid hash"
+	HashNotProvided       = "env var KEY is set but hash is missing"
+	KeyNotProvided        = "env var KEY is not set but hash is provided"
 )
 
 type Metrics struct {
@@ -20,6 +23,7 @@ type Metrics struct {
 	MType string   `json:"type"`
 	Delta *int64   `json:"delta,omitempty"`
 	Value *float64 `json:"value,omitempty"`
+	Hash  string   `json:"hash,omitempty"`
 }
 
 // MemStorage is a struct that stores all metrics

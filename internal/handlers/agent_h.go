@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
+	"github.com/gynshu-one/go-metric-collector/internal/configs"
 	"github.com/gynshu-one/go-metric-collector/internal/storage"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"log"
@@ -95,6 +96,10 @@ func (a *Agent) report() {
 // MakeReport makes a report to the server
 // Notice that serverAddr must include the protocol
 func (a *Agent) makeReport(m *storage.Metrics) {
+	var err error
+	if configs.CFG.Key != "" {
+		m.CalculateAndWriteHash()
+	}
 	jsonData, err := json.Marshal(&m)
 	if err != nil {
 		log.Fatal(err)

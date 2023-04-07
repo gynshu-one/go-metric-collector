@@ -58,6 +58,9 @@ func (s *ServerHandler) ValueJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": storage.MetricNotFound})
 		return
 	}
+	if configs.CFG.Key != "" {
+		val.CalculateAndWriteHash()
+	}
 	ctx.JSON(http.StatusOK, val)
 }
 func (s *ServerHandler) Value(ctx *gin.Context) {

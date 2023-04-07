@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"crypto/hmac"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/gynshu-one/go-metric-collector/internal/configs"
 	"github.com/gynshu-one/go-metric-collector/internal/storage"
 	"net/http"
 	"strings"
@@ -30,8 +32,7 @@ func setPreCheck(m *storage.Metrics) error {
 	case storage.GaugeType, storage.CounterType:
 		if m.MType == storage.GaugeType && m.Value == nil {
 			return errors.New(storage.TypeValueMismatch)
-		}
-		if m.MType == storage.CounterType && m.Delta == nil {
+		} else if m.MType == storage.CounterType && m.Delta == nil {
 			return errors.New(storage.TypeValueMismatch)
 		}
 	default:
@@ -41,6 +42,17 @@ func setPreCheck(m *storage.Metrics) error {
 		return errors.New(storage.MetricNameNotProvided)
 	}
 
+	// Hash part
+	if configs.CFG.Key == "" && m.Hash != "" {
+		return errors.New(storage.KeyNotProvided)
+	} else if configs.CFG.Key != "" && m.Hash == "" {
+		return errors.New(storage.HashNotProvided)
+	}
+	inputHash := m.Hash
+	m.CalculateAndWriteHash()
+	if !hmac.Equal([]byte(inputHash), []byte(m.Hash)) {
+		return errors.New(storage.InvalidHash)
+	}
 	return nil
 }
 func handleCustomError(ctx *gin.Context, err error) {

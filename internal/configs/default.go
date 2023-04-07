@@ -16,6 +16,7 @@ type Config struct {
 	StoreInterval  time.Duration `mapstructure:"STORE_INTERVAL"`
 	StoreFile      string        `mapstructure:"STORE_FILE"`
 	Restore        bool          `mapstructure:"RESTORE"`
+	Key            string        `mapstructure:"KEY"`
 }
 
 var CFG = &Config{}
@@ -44,6 +45,9 @@ func (config *Config) ReadOs() {
 	if v.Get("RESTORE") != nil {
 		config.Restore = v.GetBool("RESTORE")
 	}
+	if v.Get("KEY") != nil {
+		config.Key = v.GetString("KEY")
+	}
 }
 
 // InitFiles creates all necessary files and folders for server storage
@@ -66,6 +70,7 @@ func (config *Config) ReadServerFlags() {
 	flag.StringVar(&config.Address, "a", "localhost:8080", "server address")
 	flag.DurationVar(&config.StoreInterval, "i", 300*time.Second, "store interval")
 	flag.StringVar(&config.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")
+	flag.StringVar(&config.Key, "k", "123", "hash key")
 	flag.BoolVar(&config.Restore, "r", true, "restore")
 	flag.Parse()
 }
@@ -74,7 +79,8 @@ func (config *Config) ReadServerFlags() {
 func (config *Config) ReadAgentFlags() {
 	// read flags
 	flag.StringVar(&config.Address, "a", "localhost:8080", "server address")
-	flag.DurationVar(&config.PollInterval, "p", 2*time.Second, "poll interval")
-	flag.DurationVar(&config.ReportInterval, "r", 10*time.Second, "report interval")
+	flag.StringVar(&config.Key, "k", "", "hash key")
+	flag.DurationVar(&config.PollInterval, "p", 1*time.Second, "poll interval")
+	flag.DurationVar(&config.ReportInterval, "r", 2*time.Second, "report interval")
 	flag.Parse()
 }
