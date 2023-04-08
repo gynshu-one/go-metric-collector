@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gynshu-one/go-metric-collector/internal/configs"
+	"github.com/gynshu-one/go-metric-collector/internal/db"
 	"github.com/gynshu-one/go-metric-collector/internal/storage"
 	"net/http"
 	"sort"
@@ -165,4 +167,13 @@ func (s *ServerHandler) HTMLAllMetrics(ctx *gin.Context) {
 	}
 	sb.WriteString("</tbody></table></body></html>")
 	ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(sb.String()))
+}
+
+func (s *ServerHandler) PingDb(ctx *gin.Context) {
+	err := db.Db.Ping(context.Background())
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "DB is live"})
 }

@@ -63,6 +63,9 @@ func handleCustomError(ctx *gin.Context, err error) {
 	case storage.TypeValueMismatch, storage.InvalidHash:
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	case storage.DbConnError:
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	default:
 		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return

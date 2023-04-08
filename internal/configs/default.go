@@ -17,6 +17,7 @@ type Config struct {
 	StoreFile      string        `mapstructure:"STORE_FILE"`
 	Restore        bool          `mapstructure:"RESTORE"`
 	Key            string        `mapstructure:"KEY"`
+	DbAddress      string        `mapstructure:"DATABASE_DSN"`
 }
 
 var CFG = &Config{}
@@ -48,6 +49,9 @@ func (config *Config) ReadOs() {
 	if v.Get("KEY") != nil {
 		config.Key = v.GetString("KEY")
 	}
+	if v.Get("DATABASE_DSN") != nil {
+		config.DbAddress = v.GetString("DATABASE_DSN")
+	}
 }
 
 // InitFiles creates all necessary files and folders for server storage
@@ -72,6 +76,7 @@ func (config *Config) ReadServerFlags() {
 	flag.StringVar(&config.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")
 	flag.StringVar(&config.Key, "k", "", "hash key")
 	flag.BoolVar(&config.Restore, "r", true, "restore")
+	flag.StringVar(&config.DbAddress, "d", "", "DB address")
 	flag.Parse()
 }
 

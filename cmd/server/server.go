@@ -6,6 +6,7 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/gynshu-one/go-metric-collector/internal/configs"
+	"github.com/gynshu-one/go-metric-collector/internal/db"
 	"github.com/gynshu-one/go-metric-collector/internal/handlers"
 	"github.com/gynshu-one/go-metric-collector/internal/middlewares"
 	"github.com/gynshu-one/go-metric-collector/internal/routers"
@@ -44,16 +45,23 @@ func init() {
 		Addr:    configs.CFG.Address,
 		Handler: router,
 	}
+	db.Db = db.NewDb()
 }
 
 // Server that receives runtime metrics from the agent. with a configurable pollInterval.
 func main() {
+	ctx := context.Background()
+	dbCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	err := db.Db.Connect(dbCtx)
+	if err != nil {
+		log.Fatal("Database connection error: ", err)
+	}
 	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("listen: ", err)
 		}
 	}()
-
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -61,9 +69,9 @@ func main() {
 	handler.Memory.Dump()
 	// The context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctxShut, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	if err := server.Shutdown(ctx); err != nil {
+	if err = server.Shutdown(ctxShut); err != nil {
 		log.Fatal("Server forced to shutdown: ", err)
 	}
 
