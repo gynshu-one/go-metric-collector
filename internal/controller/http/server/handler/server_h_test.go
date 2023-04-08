@@ -1,30 +1,27 @@
-package handlers
+package handler
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/gynshu-one/go-metric-collector/internal/configs"
-	"github.com/gynshu-one/go-metric-collector/internal/storage"
+	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
+	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
+	usecase "github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"sync"
 	"testing"
 )
 
-func setupRouter() (*gin.Engine, *ServerHandler) {
-	configs.CFG.Restore = false
-	configs.CFG.StoreInterval = 0
-	configs.CFG.StoreFile = "/tmp/test_metrics.json"
-	configs.CFG.Address = "localhost:8080"
+func setupRouter() (*gin.Engine, *handler) {
 	// Then init files
-	configs.CFG.InitFiles()
 	gin.SetMode(gin.TestMode)
-	h := NewServerHandler()
+	h := NewServerHandler(usecase.NewServerUseCase(service.NewMemService(&sync.Map{})), nil)
 	r := gin.Default()
 	r.GET("/live", h.Live)
 	r.GET("/value/:metric_type/:metric_name", h.Value)
@@ -41,9 +38,9 @@ var (
 )
 
 func TestNewServerHandler(t *testing.T) {
-	handler := NewServerHandler()
-	assert.NotNil(t, handler)
-	assert.NotNil(t, handler.Memory)
+	h := NewServerHandler(usecase.NewServerUseCase(service.NewMemService(&sync.Map{})), nil)
+	assert.NotNil(t, h)
+	assert.NotNil(t, h.storage)
 }
 
 func TestLive(t *testing.T) {
@@ -56,12 +53,12 @@ func TestLive(t *testing.T) {
 }
 
 func TestValueJSON(t *testing.T) {
-	metric := storage.Metrics{
+	metric := entity.Metrics{
 		ID:    "TestMetric",
-		MType: storage.GaugeType,
+		MType: entity.GaugeType,
 		Value: tools.Float64Ptr(55.0),
 	}
-	serverHandler.Memory.Set(&metric)
+	serverHandler.storage.Set(&metric)
 
 	metricJSON, err := json.Marshal(metric)
 	require.NoError(t, err)
@@ -72,7 +69,7 @@ func TestValueJSON(t *testing.T) {
 	router.ServeHTTP(resp, req)
 	assert.Equal(t, http.StatusOK, resp.Code)
 
-	var respMetric storage.Metrics
+	var respMetric entity.Metrics
 	err = json.NewDecoder(resp.Body).Decode(&respMetric)
 	require.NoError(t, err)
 	assert.Equal(t, metric.ID, respMetric.ID)
@@ -83,12 +80,12 @@ func TestValueJSON(t *testing.T) {
 func TestValue(t *testing.T) {
 
 	// Set a value first
-	metric := storage.Metrics{
+	metric := entity.Metrics{
 		ID:    "TestMetric",
-		MType: storage.GaugeType,
+		MType: entity.GaugeType,
 		Value: tools.Float64Ptr(55.0),
 	}
-	serverHandler.Memory.Set(&metric)
+	serverHandler.storage.Set(&metric)
 
 	req := httptest.NewRequest(http.MethodGet, "/value/gauge/TestMetric", nil)
 	resp := httptest.NewRecorder()
@@ -101,30 +98,30 @@ func TestValue(t *testing.T) {
 func TestUpdateMetricsJSON(t *testing.T) {
 	TesCases := []struct {
 		name   string
-		arg    *storage.Metrics
+		arg    *entity.Metrics
 		status int
 	}{
 		{
 			name: "TestGauge",
-			arg: &storage.Metrics{
+			arg: &entity.Metrics{
 				ID:    "TestGauge",
-				MType: storage.GaugeType,
+				MType: entity.GaugeType,
 				Value: tools.Float64Ptr(55.0),
 			},
 			status: http.StatusOK,
 		},
 		{
 			name: "TestCounter",
-			arg: &storage.Metrics{
+			arg: &entity.Metrics{
 				ID:    "TestCounter",
-				MType: storage.CounterType,
+				MType: entity.CounterType,
 				Delta: tools.Int64Ptr(55),
 			},
 			status: http.StatusOK,
 		},
 		{
 			name: "InvalidMetricType",
-			arg: &storage.Metrics{
+			arg: &entity.Metrics{
 				ID:    "InvalidMetricType",
 				MType: "aa",
 				Value: tools.Float64Ptr(55.0),
@@ -133,18 +130,18 @@ func TestUpdateMetricsJSON(t *testing.T) {
 		},
 		{
 			name: "InvalidTypeAndValue",
-			arg: &storage.Metrics{
+			arg: &entity.Metrics{
 				ID:    "InvalidTypeAndValue",
-				MType: storage.CounterType,
+				MType: entity.CounterType,
 				Value: tools.Float64Ptr(55.0),
 			},
 			status: http.StatusBadRequest,
 		},
 		{
 			name: "InvalidTypeAndValue",
-			arg: &storage.Metrics{
+			arg: &entity.Metrics{
 				ID:    "InvalidTypeAndValue",
-				MType: storage.GaugeType,
+				MType: entity.GaugeType,
 				Delta: tools.Int64Ptr(55),
 			},
 			status: http.StatusBadRequest,
@@ -161,7 +158,7 @@ func TestUpdateMetricsJSON(t *testing.T) {
 			router.ServeHTTP(resp, req)
 			assert.Equal(t, tc.status, resp.Code)
 
-			updatedMetric := serverHandler.Memory.Get(tc.arg)
+			updatedMetric := serverHandler.storage.Get(tc.arg)
 			if tc.status != http.StatusOK {
 				assert.Nil(t, updatedMetric)
 				return
@@ -176,30 +173,30 @@ func TestUpdateMetricsJSON(t *testing.T) {
 func TestUpdateMetrics(t *testing.T) {
 	TesCases := []struct {
 		name   string
-		arg    *storage.Metrics
+		arg    *entity.Metrics
 		status int
 	}{
 		{
 			name: "TestGauge",
-			arg: &storage.Metrics{
+			arg: &entity.Metrics{
 				ID:    "TestGauge2",
-				MType: storage.GaugeType,
+				MType: entity.GaugeType,
 				Value: tools.Float64Ptr(55.0),
 			},
 			status: http.StatusOK,
 		},
 		{
 			name: "TestCounter",
-			arg: &storage.Metrics{
+			arg: &entity.Metrics{
 				ID:    "TestCounter2",
-				MType: storage.CounterType,
+				MType: entity.CounterType,
 				Delta: tools.Int64Ptr(55),
 			},
 			status: http.StatusOK,
 		},
 		{
 			name: "InvalidMetricType",
-			arg: &storage.Metrics{
+			arg: &entity.Metrics{
 				ID:    "InvalidMetricType2",
 				MType: "aa",
 				Value: tools.Float64Ptr(55.0),
@@ -208,9 +205,9 @@ func TestUpdateMetrics(t *testing.T) {
 		},
 		{
 			name: "InvalidTypeAndValue",
-			arg: &storage.Metrics{
+			arg: &entity.Metrics{
 				ID:    "InvalidTypeAndValue2",
-				MType: storage.CounterType,
+				MType: entity.CounterType,
 				Value: tools.Float64Ptr(55.0),
 			},
 			status: http.StatusBadRequest,
@@ -232,7 +229,7 @@ func TestUpdateMetrics(t *testing.T) {
 			router.ServeHTTP(resp, req)
 			assert.Equal(t, tc.status, resp.Code)
 
-			updatedMetric := serverHandler.Memory.Get(tc.arg)
+			updatedMetric := serverHandler.storage.Get(tc.arg)
 			if tc.status != http.StatusOK {
 				assert.Nil(t, updatedMetric)
 				return
@@ -246,19 +243,19 @@ func TestUpdateMetrics(t *testing.T) {
 
 func TestHTMLAllMetrics(t *testing.T) {
 	// Set some values first
-	metric1 := storage.Metrics{
+	metric1 := entity.Metrics{
 		ID:    "TestMetric1",
-		MType: storage.GaugeType,
+		MType: entity.GaugeType,
 		Value: tools.Float64Ptr(55.0),
 	}
-	serverHandler.Memory.Set(&metric1)
+	serverHandler.storage.Set(&metric1)
 
-	metric2 := storage.Metrics{
+	metric2 := entity.Metrics{
 		ID:    "TestMetric2",
-		MType: storage.CounterType,
+		MType: entity.CounterType,
 		Delta: tools.Int64Ptr(1),
 	}
-	serverHandler.Memory.Set(&metric2)
+	serverHandler.storage.Set(&metric2)
 
 	req := httptest.NewRequest(http.MethodGet, "/html_all_metrics", nil)
 	resp := httptest.NewRecorder()

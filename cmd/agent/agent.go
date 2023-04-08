@@ -1,25 +1,17 @@
 package main
 
 import (
-	"github.com/fatih/color"
-	"github.com/gynshu-one/go-metric-collector/internal/configs"
-	"github.com/gynshu-one/go-metric-collector/internal/handlers"
+	ag "github.com/gynshu-one/go-metric-collector/internal/controller/http/agent"
+	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
+	"sync"
 )
 
-func init() {
-	// Order matters if we want to prioritize ENV over flags
-	configs.CFG.ReadAgentFlags()
-	configs.CFG.ReadOs()
-	// Then init files
-	configs.CFG.InitFiles()
-	configs.CFG.Address = "http://" + configs.CFG.Address
-	color.Cyan("Configs: %+v", configs.CFG)
-}
-func main() {
-	agent := handlers.NewAgent(configs.CFG.PollInterval,
-		configs.CFG.ReportInterval,
-		configs.CFG.Address)
+var (
+	agent   ag.Handler
+	storage service.MemStorage
+)
 
-	// Start the agent
+func main() {
+	agent = ag.NewAgent(service.NewMemService(&sync.Map{}))
 	agent.Start()
 }

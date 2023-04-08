@@ -1,19 +1,42 @@
-package storage
+package entity
 
 import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/gynshu-one/go-metric-collector/internal/configs"
 )
+
+const (
+	GaugeType             = "gauge"
+	CounterType           = "counter"
+	InvalidType           = "invalid type"
+	TypeValueMismatch     = "type and value mismatch"
+	NameTypeMismatch      = "name and type you have sent mismatch with the one in the storage"
+	MetricTypeNotProvided = "metric type not provided"
+	MetricNameNotProvided = "metric name not provided"
+	MetricNotFound        = "metric not found"
+	InvalidHash           = "invalid hash"
+	HashNotProvided       = "env var KEY is set but hash is missing"
+
+	DbConnError = "db connection error"
+)
+
+type Metrics struct {
+	ID    string   `json:"id"`
+	MType string   `json:"type"`
+	Delta *int64   `json:"delta,omitempty"`
+	Value *float64 `json:"value,omitempty"`
+	Hash  string   `json:"hash,omitempty"`
+}
+
+type ApplyToAll func(*Metrics)
 
 // CalculateAndWriteHash calculates HMAC hash of the message with the key and writes it to the Hash field
 // May be this function is violating the single responsibility principle (?)
 // In my opinion this is the best way to do it, otherwise we would have to calculate the hash
 // in other package where we should import Metrics struct for simplicity, or in both handlers
-func (M *Metrics) CalculateAndWriteHash() []byte {
-	key := configs.CFG.Key
+func (M *Metrics) CalculateAndWriteHash(key string) []byte {
 	//HMAC Sign  message hash with key
 	if key == "" {
 		M.Hash = ""

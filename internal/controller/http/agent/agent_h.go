@@ -1,11 +1,12 @@
-package handlers
+package agent
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
-	"github.com/gynshu-one/go-metric-collector/internal/configs"
-	"github.com/gynshu-one/go-metric-collector/internal/storage"
+	config "github.com/gynshu-one/go-metric-collector/internal/config/agent"
+	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
+	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"log"
 	"math/rand"
@@ -16,53 +17,51 @@ import (
 
 var client = resty.New()
 
-type Agent struct {
-	pollInterval   time.Duration
-	reportInterval time.Duration
-	serverAddr     string
-	memory         storage.MemActions
+type handler struct {
+	memory service.MemStorage
 }
 
-func NewAgent(pollInterval, reportInterval time.Duration, serverAddr string) *Agent {
-	return &Agent{
-		pollInterval:   pollInterval,
-		reportInterval: reportInterval,
-		serverAddr:     serverAddr,
-		memory:         storage.NewMemStorage(),
+type Handler interface {
+	Start()
+}
+
+func NewAgent(storage service.MemStorage) *handler {
+	return &handler{
+		memory: storage,
 	}
 }
 
 // Start polls runtime Metrics and reports them to the server by calling Report()
-func (a *Agent) Start() {
+func (h *handler) Start() {
 	pollCount := 0
 	go func() {
 		for {
 			pollCount++
-			a.readRuntime()
+			h.readRuntime()
 			// Sleep for poll interval
-			time.Sleep(a.pollInterval)
+			time.Sleep(config.GetConfig().Agent.PollInterval)
 		}
 	}()
 	for {
-		time.Sleep(a.reportInterval)
+		time.Sleep(config.GetConfig().Agent.ReportInterval)
 		go func() {
-			a.memory.Set(&storage.Metrics{
+			h.memory.Set(&entity.Metrics{
 				ID:    "PollCount",
-				MType: storage.CounterType,
+				MType: entity.CounterType,
 				Delta: tools.Int64Ptr(int64(pollCount)),
 			})
-			a.memory.Set(&storage.Metrics{
+			h.memory.Set(&entity.Metrics{
 				ID:    "RandomValue",
-				MType: storage.GaugeType,
+				MType: entity.GaugeType,
 				Value: tools.Float64Ptr(rand.Float64()),
 			})
-			a.report()
+			h.report()
 			pollCount = 0
 		}()
 	}
 
 }
-func (a *Agent) readRuntime() {
+func (h *handler) readRuntime() {
 	// read runtime metrics
 	memStats := &runtime.MemStats{}
 	runtime.ReadMemStats(memStats)
@@ -71,34 +70,34 @@ func (a *Agent) readRuntime() {
 		switch input.Field(i).Kind() {
 		case reflect.Uint64, reflect.Uint32:
 			value := float64(input.Field(i).Uint())
-			m := storage.Metrics{
+			m := entity.Metrics{
 				ID:    input.Type().Field(i).Name,
-				MType: storage.GaugeType,
+				MType: entity.GaugeType,
 				Value: &value,
 			}
-			a.memory.Set(&m)
+			h.memory.Set(&m)
 		case reflect.Float64:
 			value := input.Field(i).Float()
-			m := storage.Metrics{
+			m := entity.Metrics{
 				ID:    input.Type().Field(i).Name,
-				MType: storage.GaugeType,
+				MType: entity.GaugeType,
 				Value: &value,
 			}
-			a.memory.Set(&m)
+			h.memory.Set(&m)
 		}
 	}
 }
-func (a *Agent) report() {
+func (h *handler) report() {
 	// check if the metric is presented in MemStorage
-	a.memory.ApplyToAll(a.makeReport)
+	h.memory.ApplyToAll(h.makeReport)
 }
 
 // MakeReport makes a report to the server
 // Notice that serverAddr must include the protocol
-func (a *Agent) makeReport(m *storage.Metrics) {
+func (h *handler) makeReport(m *entity.Metrics) {
 	var err error
-	if configs.CFG.Key != "" {
-		m.CalculateAndWriteHash()
+	if config.GetConfig().Key != "" {
+		m.CalculateAndWriteHash(config.GetConfig().Key)
 	}
 	jsonData, err := json.Marshal(&m)
 	if err != nil {
@@ -107,7 +106,7 @@ func (a *Agent) makeReport(m *storage.Metrics) {
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(jsonData).
-		Post(a.serverAddr + "/update/")
+		Post(config.GetConfig().Server.Address + "/update/")
 
 	if err != nil {
 		fmt.Printf("Error: %v", err)

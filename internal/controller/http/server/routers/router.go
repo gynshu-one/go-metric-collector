@@ -2,10 +2,10 @@ package routers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/gynshu-one/go-metric-collector/internal/handlers"
+	"github.com/gynshu-one/go-metric-collector/internal/controller/http/server/handler"
 )
 
-func MetricsRoute(router *gin.Engine, handler *handlers.ServerHandler) {
+func MetricsRoute(router *gin.Engine, handler handler.Handler) {
 	router.GET("/", handler.HTMLAllMetrics)
 	router.GET("/live/", handler.Live)
 
