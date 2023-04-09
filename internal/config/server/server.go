@@ -84,6 +84,7 @@ func (config *config) initFiles() {
 // readServerFlags reads config from flags Run this first
 func (config *config) readServerFlags() {
 	// read flags
+	flag.CommandLine.Init("go-metric-collector", flag.ContinueOnError)
 	flag.StringVar(&config.Server.Address, "a", "localhost:8080", "server address")
 	flag.DurationVar(&config.Server.StoreInterval, "i", 300*time.Second, "store interval")
 	flag.StringVar(&config.Server.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")

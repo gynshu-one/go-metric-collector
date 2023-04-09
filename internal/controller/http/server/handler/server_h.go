@@ -18,7 +18,7 @@ import (
 
 type handler struct {
 	storage storage.ServerStorage
-	db      postgres.Db
+	db      postgres.DB
 }
 
 type Handler interface {
@@ -28,10 +28,10 @@ type Handler interface {
 	UpdateMetricsJSON(ctx *gin.Context)
 	UpdateMetrics(ctx *gin.Context)
 	HTMLAllMetrics(ctx *gin.Context)
-	PingDb(ctx *gin.Context)
+	PingDB(ctx *gin.Context)
 }
 
-func NewServerHandler(storage storage.ServerStorage, db postgres.Db) *handler {
+func NewServerHandler(storage storage.ServerStorage, db postgres.DB) *handler {
 	hand := &handler{
 		storage: storage,
 		db:      db,
@@ -182,7 +182,7 @@ func (h handler) HTMLAllMetrics(ctx *gin.Context) {
 	ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(sb.String()))
 }
 
-func (h handler) PingDb(ctx *gin.Context) {
+func (h handler) PingDB(ctx *gin.Context) {
 	c := context.Background()
 	err := h.db.Ping(c)
 	if err != nil {

@@ -57,6 +57,7 @@ func (config *config) readOs() {
 // readAgentFlags separate function required bec of similar variable names required for agent and server
 func (config *config) readAgentFlags() {
 	// read flags
+	flag.CommandLine.Init("go-metric-collector", flag.ContinueOnError)
 	flag.StringVar(&config.Server.Address, "a", "localhost:8080", "server address")
 	flag.StringVar(&config.Key, "k", "", "hash key")
 	flag.DurationVar(&config.Agent.PollInterval, "p", 1*time.Second, "poll interval")

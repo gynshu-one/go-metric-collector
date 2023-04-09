@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type Db interface {
+type DB interface {
 	Connect(ctx context.Context) error
 	Ping(ctx context.Context) error
 }
@@ -14,7 +14,7 @@ type face struct {
 	conn *pgx.Conn
 }
 
-func NewDb() *face {
+func NewDB() *face {
 	return &face{}
 }
 

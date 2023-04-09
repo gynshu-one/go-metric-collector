@@ -26,14 +26,14 @@ var (
 	server  *http.Server
 	handler hand.Handler
 	router  *gin.Engine
-	db      postgres.Db
+	db      postgres.DB
 )
 
 func init() {
 	//gin.SetMode(gin.ReleaseMode)
 	router = gin.Default()
 	storage = usecase.NewServerUseCase(service.NewMemService(&sync.Map{}))
-	db = postgres.NewDb()
+	db = postgres.NewDB()
 	handler = hand.NewServerHandler(storage, nil)
 	// I don't know if MiscDecompress() middleware even required for this increment
 	router.Use(cors.Default(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression))
