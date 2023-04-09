@@ -64,7 +64,7 @@ func handleCustomError(ctx *gin.Context, err error) {
 	case entity.TypeValueMismatch, entity.InvalidHash:
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
-	case entity.DbConnError:
+	case entity.DBConnError:
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	default:
