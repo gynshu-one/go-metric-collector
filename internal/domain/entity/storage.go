@@ -19,7 +19,7 @@ const (
 	InvalidHash           = "invalid hash"
 	HashNotProvided       = "env var KEY is set but hash is missing"
 
-	DbConnError = "db connection error"
+	DBConnError = "db connection error"
 )
 
 type Metrics struct {
