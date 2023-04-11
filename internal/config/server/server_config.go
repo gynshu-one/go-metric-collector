@@ -61,7 +61,7 @@ func (config *config) readOs() {
 	if v.Get("KEY") != nil {
 		config.Key = v.GetString("KEY")
 	}
-	if v.Get("DATABASE_DSN") != nil {
+	if config.Database.Address == "" {
 		config.Database.Address = v.GetString("DATABASE_DSN")
 	}
 	//config.Server.Address = "http://" + config.Server.Address

@@ -9,6 +9,7 @@ import (
 	hand "github.com/gynshu-one/go-metric-collector/internal/controller/http/server/handler"
 	"github.com/gynshu-one/go-metric-collector/internal/controller/http/server/middlewares"
 	"github.com/gynshu-one/go-metric-collector/internal/controller/http/server/routers"
+	"github.com/gynshu-one/go-metric-collector/internal/db_adapters"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	usecase "github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
 	"github.com/gynshu-one/go-metric-collector/pkg/client/postgres"
@@ -26,23 +27,30 @@ var (
 	server  *http.Server
 	handler hand.Handler
 	router  *gin.Engine
-	db      postgres.DB
+	dbConn  postgres.DBConn
+
+	dbAdapter db_adapters.DbAdapter
 )
 
 func init() {
 	//gin.SetMode(gin.ReleaseMode)
 	router = gin.Default()
-	storage = usecase.NewServerUseCase(service.NewMemService(&sync.Map{}))
-	db = postgres.NewDB()
-	handler = hand.NewServerHandler(storage, nil)
-	// I don't know if MiscDecompress() middleware even required for this increment
+
+	dbConn = postgres.NewDB()
+
+	dbAdapter = db_adapters.NewAdapter(dbConn.GetConn())
+
+	storage = usecase.NewServerUseCase(service.NewMemService(&sync.Map{}), dbAdapter)
+
 	router.Use(cors.Default(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression))
 	routers.MetricsRoute(router, handler)
+
 	// These two lines written to pass autotests (wrong code, redirect)
 	// -------------------------------
 	router.RedirectTrailingSlash = false
 	router.RedirectFixedPath = true
 	// -------------------------------
+
 	server = &http.Server{
 		Addr:    config.GetConfig().Server.Address,
 		Handler: router,
@@ -52,14 +60,13 @@ func init() {
 // ServerStorage that receives runtime metrics from the agent. with a configurable pollInterval.
 func main() {
 	ctx := context.Background()
-	dbCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
 	if config.GetConfig().Database.Address != "" {
-		err := db.Connect(dbCtx)
+		err := dbConn.Connect()
 		if err != nil {
 			log.Fatal("Database connection error: ", err)
 		}
 	}
+	handler = hand.NewServerHandler(storage, dbConn)
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("listen: ", err)
@@ -69,7 +76,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
-	storage.Dump()
+	storage.Dump(ctx)
 	// The context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling
 	ctxShut, cancel := context.WithTimeout(ctx, 5*time.Second)

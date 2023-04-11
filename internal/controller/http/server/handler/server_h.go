@@ -18,7 +18,7 @@ import (
 
 type handler struct {
 	storage storage.ServerStorage
-	db      postgres.DB
+	dbConn  postgres.DBConn
 }
 
 type Handler interface {
@@ -31,20 +31,20 @@ type Handler interface {
 	PingDB(ctx *gin.Context)
 }
 
-func NewServerHandler(storage storage.ServerStorage, db postgres.DB) *handler {
+func NewServerHandler(storage storage.ServerStorage, db postgres.DBConn) *handler {
 	hand := &handler{
 		storage: storage,
-		db:      db,
+		dbConn:  db,
 	}
 	if config.GetConfig().Server.Restore {
-		hand.storage.Restore()
+		hand.storage.Restore(context.Background())
 	}
 	if config.GetConfig().Server.StoreInterval != 0 {
 		ticker := time.NewTicker(config.GetConfig().Server.StoreInterval)
 		go func() {
 			for {
 				t := <-ticker.C
-				hand.storage.Dump()
+				hand.storage.Dump(context.Background())
 				fmt.Println("Saved to file at", t)
 			}
 		}()
@@ -124,7 +124,7 @@ func (h handler) UpdateMetricsJSON(ctx *gin.Context) {
 		return
 	}
 	if config.GetConfig().Server.StoreInterval == 0 {
-		go h.storage.Dump()
+		go h.storage.Dump(ctx.Request.Context())
 	}
 	ctx.JSON(http.StatusOK, val)
 }
@@ -164,7 +164,7 @@ func (h handler) UpdateMetrics(ctx *gin.Context) {
 		return
 	}
 	if config.GetConfig().Server.StoreInterval == 0 {
-		go h.storage.Dump()
+		go h.storage.Dump(ctx.Request.Context())
 	}
 	ctx.JSON(http.StatusOK, val)
 }
@@ -183,11 +183,12 @@ func (h handler) HTMLAllMetrics(ctx *gin.Context) {
 }
 
 func (h handler) PingDB(ctx *gin.Context) {
-	c := context.Background()
-	err := h.db.Ping(c)
+	c, cancel := context.WithTimeout(ctx.Request.Context(), 5*time.Second)
+	defer cancel()
+	err := h.dbConn.Ping(c)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "DB is live"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "DBConn is live"})
 }
