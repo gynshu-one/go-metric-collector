@@ -92,7 +92,7 @@ func TestValue(t *testing.T) {
 
 	router.ServeHTTP(resp, req)
 	assert.Equal(t, http.StatusOK, resp.Code)
-	assert.Equal(t, "55.000", resp.Body.String())
+	assert.Equal(t, "55.00", resp.Body.String())
 }
 
 func TestUpdateMetricsJSON(t *testing.T) {
