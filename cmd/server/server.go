@@ -5,11 +5,11 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
+	"github.com/gynshu-one/go-metric-collector/internal/adapters"
 	config "github.com/gynshu-one/go-metric-collector/internal/config/server"
 	hand "github.com/gynshu-one/go-metric-collector/internal/controller/http/server/handler"
 	"github.com/gynshu-one/go-metric-collector/internal/controller/http/server/middlewares"
 	"github.com/gynshu-one/go-metric-collector/internal/controller/http/server/routers"
-	"github.com/gynshu-one/go-metric-collector/internal/db_adapters"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	usecase "github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
 	"github.com/gynshu-one/go-metric-collector/pkg/client/postgres"
@@ -29,7 +29,7 @@ var (
 	router  *gin.Engine
 	dbConn  postgres.DBConn
 
-	dbAdapter db_adapters.DBAdapter
+	dbAdapter adapters.DBAdapter
 )
 
 func init() {
@@ -54,7 +54,7 @@ func main() {
 	dbConn = postgres.NewDB()
 	if config.GetConfig().Database.Address != "" {
 		err := dbConn.Connect()
-		dbAdapter = db_adapters.NewAdapter(dbConn.GetConn())
+		dbAdapter = adapters.NewAdapter(dbConn.GetConn())
 		if err != nil {
 			log.Fatal("Database connection error: ", err)
 		}

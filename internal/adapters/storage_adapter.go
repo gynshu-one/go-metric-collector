@@ -1,4 +1,4 @@
-package db_adapters
+package adapters
 
 import (
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
@@ -77,10 +77,10 @@ func (a *dbAdapter) StoreMetrics(metrics []*entity.Metrics) error {
 }
 func (a *dbAdapter) GetMetrics() ([]*entity.Metrics, error) {
 	rows, err := a.conn.Queryx(selectAll)
-	defer rows.Close()
-	if err != nil {
+	if err != nil || rows.Err() != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	metrics := make([]*entity.Metrics, 0)
 	for rows.Next() {
 		var m entity.Metrics
@@ -105,7 +105,7 @@ func (a *dbAdapter) commitScheme() error {
 }
 func (a *dbAdapter) getMetricsByID(id string) (*entity.Metrics, error) {
 	rows, err := a.conn.Queryx(getByID, id)
-	if err != nil {
+	if err != nil || rows.Err() != nil {
 		return nil, err
 	}
 	defer rows.Close()

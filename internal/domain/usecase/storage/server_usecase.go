@@ -3,8 +3,8 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gynshu-one/go-metric-collector/internal/adapters"
 	config "github.com/gynshu-one/go-metric-collector/internal/config/server"
-	"github.com/gynshu-one/go-metric-collector/internal/db_adapters"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	"log"
@@ -19,10 +19,10 @@ type ServerStorage interface {
 }
 type serverUseCase struct {
 	service.MemStorage
-	dbAdapter db_adapters.DBAdapter
+	dbAdapter adapters.DBAdapter
 }
 
-func NewServerUseCase(MemStorage service.MemStorage, dbAdapter db_adapters.DBAdapter) *serverUseCase {
+func NewServerUseCase(MemStorage service.MemStorage, dbAdapter adapters.DBAdapter) *serverUseCase {
 	s := &serverUseCase{
 		MemStorage: MemStorage,
 		dbAdapter:  dbAdapter,
