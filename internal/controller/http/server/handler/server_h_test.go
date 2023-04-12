@@ -221,7 +221,7 @@ func TestUpdateMetrics(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			val := ""
 			if tc.arg.Value != nil {
-				val = strconv.FormatFloat(*tc.arg.Value, 'f', 3, 64)
+				val = fmt.Sprintf("%.*f", tc.arg.FloatPrecision, *tc.arg.Value)
 			}
 			if tc.arg.Delta != nil {
 				val = strconv.FormatInt(*tc.arg.Delta, 10)
