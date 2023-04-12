@@ -39,6 +39,7 @@ func (M memService) Set(m *entity.Metrics) *entity.Metrics {
 		switch m.MType {
 		case entity.GaugeType:
 			*found.(*entity.Metrics).Value = *m.Value
+			found.(*entity.Metrics).FloatPrecision = m.FloatPrecision
 		case entity.CounterType:
 			*found.(*entity.Metrics).Delta += *m.Delta
 		}

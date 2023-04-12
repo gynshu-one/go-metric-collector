@@ -117,8 +117,6 @@ func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 		handleCustomError(ctx, err)
 		return
 	}
-	//decimalPlaces := strings.Split(metricValue, ".")
-	//m.FloatPrecision = len(decimalPlaces[1])
 	if value.Value != nil {
 		decimalPlaces := strings.Split(string(value.Value), ".")
 		if len(decimalPlaces) > 1 {
@@ -154,7 +152,7 @@ func (h *handler) UpdateMetrics(ctx *gin.Context) {
 		m.Value = &val
 		decimalPlaces := strings.Split(metricValue, ".")
 		if len(decimalPlaces) > 1 {
-			m.FloatPrecision = len(decimalPlaces)
+			m.FloatPrecision = len(decimalPlaces[1])
 		} else {
 			m.FloatPrecision = 0
 		}
