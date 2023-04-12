@@ -8,6 +8,7 @@ import (
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
 	"github.com/gynshu-one/go-metric-collector/pkg/client/postgres"
+	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -81,7 +82,7 @@ func (h *handler) Value(ctx *gin.Context) {
 	}
 	if val.Value != nil {
 		floatVal := *val.Value
-		floatStr := strconv.FormatFloat(floatVal, 'f', 2, 64)
+		floatStr := strconv.FormatFloat(floatVal, 'f', val.FloatPrecision, 64)
 		ctx.Data(http.StatusOK, "text/plain", []byte(floatStr))
 	} else if val.Delta != nil {
 		intDelta := *val.Delta
@@ -92,9 +93,21 @@ func (h *handler) Value(ctx *gin.Context) {
 }
 func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 	var m entity.Metrics
+	var value struct {
+		Value json.RawMessage `json:"value"`
+	}
 	body := ctx.Request.Body
 	defer body.Close()
-	err := json.NewDecoder(body).Decode(&m)
+	bodyBytes, err := io.ReadAll(body)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
+		return
+	}
+	err = json.Unmarshal(bodyBytes, &value)
+	if err != nil {
+		value.Value = nil
+	}
+	err = json.Unmarshal(bodyBytes, &m)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
 		return
@@ -103,6 +116,16 @@ func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 	if err != nil {
 		handleCustomError(ctx, err)
 		return
+	}
+	//decimalPlaces := strings.Split(metricValue, ".")
+	//m.FloatPrecision = len(decimalPlaces[1])
+	if value.Value != nil {
+		decimalPlaces := strings.Split(string(value.Value), ".")
+		if len(decimalPlaces) > 1 {
+			m.FloatPrecision = len(decimalPlaces[1])
+		} else {
+			m.FloatPrecision = 0
+		}
 	}
 	val := h.storage.Set(&m)
 	if val == nil {
@@ -129,6 +152,13 @@ func (h *handler) UpdateMetrics(ctx *gin.Context) {
 			return
 		}
 		m.Value = &val
+		decimalPlaces := strings.Split(metricValue, ".")
+		if len(decimalPlaces) > 1 {
+			m.FloatPrecision = len(decimalPlaces)
+		} else {
+			m.FloatPrecision = 0
+		}
+
 	case entity.CounterType:
 		val, err_ := strconv.ParseInt(metricValue, 10, 64)
 		if err_ != nil {

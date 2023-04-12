@@ -81,9 +81,10 @@ func TestValue(t *testing.T) {
 
 	// Set a value first
 	metric := entity.Metrics{
-		ID:    "TestMetric",
-		MType: entity.GaugeType,
-		Value: tools.Float64Ptr(55.0),
+		ID:             "TestMetric",
+		MType:          entity.GaugeType,
+		Value:          tools.Float64Ptr(55),
+		FloatPrecision: 0,
 	}
 	serverHandler.storage.Set(&metric)
 
@@ -92,7 +93,7 @@ func TestValue(t *testing.T) {
 
 	router.ServeHTTP(resp, req)
 	assert.Equal(t, http.StatusOK, resp.Code)
-	assert.Equal(t, "55.00", resp.Body.String())
+	assert.Equal(t, "55", resp.Body.String())
 }
 
 func TestUpdateMetricsJSON(t *testing.T) {
@@ -179,9 +180,10 @@ func TestUpdateMetrics(t *testing.T) {
 		{
 			name: "TestGauge",
 			arg: &entity.Metrics{
-				ID:    "TestGauge2",
-				MType: entity.GaugeType,
-				Value: tools.Float64Ptr(55.0),
+				ID:             "TestGauge2",
+				MType:          entity.GaugeType,
+				Value:          tools.Float64Ptr(55.0),
+				FloatPrecision: 2,
 			},
 			status: http.StatusOK,
 		},
@@ -197,18 +199,20 @@ func TestUpdateMetrics(t *testing.T) {
 		{
 			name: "InvalidMetricType",
 			arg: &entity.Metrics{
-				ID:    "InvalidMetricType2",
-				MType: "aa",
-				Value: tools.Float64Ptr(55.0),
+				ID:             "InvalidMetricType2",
+				MType:          "aa",
+				Value:          tools.Float64Ptr(55.0),
+				FloatPrecision: 1,
 			},
 			status: http.StatusNotImplemented,
 		},
 		{
 			name: "InvalidTypeAndValue",
 			arg: &entity.Metrics{
-				ID:    "InvalidTypeAndValue2",
-				MType: entity.CounterType,
-				Value: tools.Float64Ptr(55.0),
+				ID:             "InvalidTypeAndValue2",
+				MType:          entity.CounterType,
+				Value:          tools.Float64Ptr(55.0),
+				FloatPrecision: 1,
 			},
 			status: http.StatusBadRequest,
 		},
