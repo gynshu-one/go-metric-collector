@@ -61,7 +61,7 @@ func (config *config) readOs() {
 	if v.Get("KEY") != nil {
 		config.Key = v.GetString("KEY")
 	}
-	if config.Database.Address == "" {
+	if v.Get("DATABASE_DSN") != nil {
 		config.Database.Address = v.GetString("DATABASE_DSN")
 	}
 	//config.Server.Address = "http://" + config.Server.Address
@@ -90,6 +90,6 @@ func (config *config) readServerFlags() {
 	flag.StringVar(&config.Server.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")
 	flag.StringVar(&config.Key, "k", "", "hash key")
 	flag.BoolVar(&config.Server.Restore, "r", true, "restore")
-	flag.StringVar(&config.Database.Address, "d", "", "DB address")
+	flag.StringVar(&config.Database.Address, "d", "postgres://postgres:postgres@localhost:5432/praktikum?sslmode=disable", "DB address")
 	flag.Parse()
 }

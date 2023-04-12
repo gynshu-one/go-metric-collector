@@ -11,6 +11,7 @@ import (
 type DbAdapter interface {
 	StoreMetrics(context.Context, []*entity.Metrics) error
 	GetMetrics(context.Context) ([]*entity.Metrics, error)
+	Test() bool
 }
 
 type dbAdapter struct {
@@ -50,6 +51,21 @@ const getByID = `
 SELECT * FROM metrics WHERE id = $1
 `
 
+const test = `
+SELECT true
+FROM  metrics  AS tbl
+WHERE
+    tbl::text LIKE $1
+LIMIT 1`
+
+func (a *dbAdapter) Test() bool {
+	rows, err := a.conn.Queryx(test, "%PopulateCounter1625326%")
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	return rows.Next()
+}
 func (a *dbAdapter) StoreMetrics(ctx context.Context, metrics []*entity.Metrics) error {
 	ctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
 	defer cancel()
