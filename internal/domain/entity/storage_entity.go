@@ -23,11 +23,11 @@ const (
 )
 
 type Metrics struct {
-	ID    string   `json:"id"`
-	MType string   `json:"type"`
-	Delta *int64   `json:"delta,omitempty"`
-	Value *float64 `json:"value,omitempty"`
-	Hash  string   `json:"hash,omitempty"`
+	ID    string   `json:"id" db:"id,primarykey"`
+	MType string   `json:"type" db:"type"`
+	Delta *int64   `json:"delta,omitempty" db:"delta,omitempty" `
+	Value *float64 `json:"value,omitempty" db:"value,omitempty"`
+	Hash  string   `json:"hash,omitempty" db:"hash,omitempty"`
 }
 
 type ApplyToAll func(*Metrics)

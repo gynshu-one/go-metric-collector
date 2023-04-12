@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	config "github.com/gynshu-one/go-metric-collector/internal/config/server"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
@@ -36,25 +35,12 @@ func NewServerHandler(storage storage.ServerStorage, db postgres.DBConn) *handle
 		storage: storage,
 		dbConn:  db,
 	}
-	if config.GetConfig().Server.Restore {
-		hand.storage.Restore(context.Background())
-	}
-	if config.GetConfig().Server.StoreInterval != 0 {
-		ticker := time.NewTicker(config.GetConfig().Server.StoreInterval)
-		go func() {
-			for {
-				t := <-ticker.C
-				hand.storage.Dump(context.Background())
-				fmt.Println("Saved to file at", t)
-			}
-		}()
-	}
 	return hand
 }
-func (h handler) Live(ctx *gin.Context) {
+func (h *handler) Live(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "ServerStorage is live"})
 }
-func (h handler) ValueJSON(ctx *gin.Context) {
+func (h *handler) ValueJSON(ctx *gin.Context) {
 	var m entity.Metrics
 	body := ctx.Request.Body
 	defer body.Close()
@@ -78,7 +64,7 @@ func (h handler) ValueJSON(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, val)
 }
-func (h handler) Value(ctx *gin.Context) {
+func (h *handler) Value(ctx *gin.Context) {
 	m := entity.Metrics{
 		ID:    ctx.Param("metric_name"),
 		MType: ctx.Param("metric_type"),
@@ -104,7 +90,7 @@ func (h handler) Value(ctx *gin.Context) {
 	}
 
 }
-func (h handler) UpdateMetricsJSON(ctx *gin.Context) {
+func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 	var m entity.Metrics
 	body := ctx.Request.Body
 	defer body.Close()
@@ -129,7 +115,7 @@ func (h handler) UpdateMetricsJSON(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, val)
 }
 
-func (h handler) UpdateMetrics(ctx *gin.Context) {
+func (h *handler) UpdateMetrics(ctx *gin.Context) {
 	m := entity.Metrics{
 		ID:    ctx.Param("metric_name"),
 		MType: ctx.Param("metric_type"),
@@ -169,7 +155,7 @@ func (h handler) UpdateMetrics(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, val)
 }
 
-func (h handler) HTMLAllMetrics(ctx *gin.Context) {
+func (h *handler) HTMLAllMetrics(ctx *gin.Context) {
 	body := generateHTMLTable(h.storage)
 	// Sort the table by type, name, so it's easier to read when page updates
 	sort.Strings(body)
@@ -182,7 +168,7 @@ func (h handler) HTMLAllMetrics(ctx *gin.Context) {
 	ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(sb.String()))
 }
 
-func (h handler) PingDB(ctx *gin.Context) {
+func (h *handler) PingDB(ctx *gin.Context) {
 	c, cancel := context.WithTimeout(ctx.Request.Context(), 5*time.Second)
 	defer cancel()
 	err := h.dbConn.Ping(c)

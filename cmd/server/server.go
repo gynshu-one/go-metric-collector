@@ -36,15 +36,6 @@ func init() {
 	//gin.SetMode(gin.ReleaseMode)
 	router = gin.Default()
 
-	dbConn = postgres.NewDB()
-
-	dbAdapter = db_adapters.NewAdapter(dbConn.GetConn())
-
-	storage = usecase.NewServerUseCase(service.NewMemService(&sync.Map{}), dbAdapter)
-
-	router.Use(cors.Default(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression))
-	routers.MetricsRoute(router, handler)
-
 	// These two lines written to pass autotests (wrong code, redirect)
 	// -------------------------------
 	router.RedirectTrailingSlash = false
@@ -60,13 +51,19 @@ func init() {
 // ServerStorage that receives runtime metrics from the agent. with a configurable pollInterval.
 func main() {
 	ctx := context.Background()
+	dbConn = postgres.NewDB()
 	if config.GetConfig().Database.Address != "" {
 		err := dbConn.Connect()
+		dbAdapter = db_adapters.NewAdapter(dbConn.GetConn())
 		if err != nil {
 			log.Fatal("Database connection error: ", err)
 		}
 	}
+	storage = usecase.NewServerUseCase(service.NewMemService(&sync.Map{}), dbAdapter)
 	handler = hand.NewServerHandler(storage, dbConn)
+	router.Use(cors.Default(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression))
+	routers.MetricsRoute(router, handler)
+
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("listen: ", err)

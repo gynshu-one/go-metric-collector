@@ -32,7 +32,7 @@ func (db *dbConn) Connect() error {
 		panic(err)
 	}
 	var (
-		host    = dbUrl.Host
+		host    = strings.Split(dbUrl.Host, ":")[0]
 		port    = strings.Split(dbUrl.Host, ":")[1]
 		user    = dbUrl.User.Username()
 		pass, _ = dbUrl.User.Password()
@@ -42,6 +42,7 @@ func (db *dbConn) Connect() error {
 	// compose connection string
 	composed := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		host, port, user, pass, dbname, mode)
+	fmt.Println("composed=", composed)
 	db.conn, err = sqlx.Open("postgres", composed)
 	if err != nil {
 		return err
