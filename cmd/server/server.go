@@ -63,10 +63,7 @@ func main() {
 	handler = hand.NewServerHandler(storage, dbConn)
 	router.Use(cors.Default(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression))
 	routers.MetricsRoute(router, handler)
-	//ok := dbAdapter.Test()
-	//if !ok {
-	//	log.Fatal("Database connection error: ", ok)
-	//}
+
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("listen: ", err)

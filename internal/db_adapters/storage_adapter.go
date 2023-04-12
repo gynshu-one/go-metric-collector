@@ -11,7 +11,6 @@ import (
 type DbAdapter interface {
 	StoreMetrics(context.Context, []*entity.Metrics) error
 	GetMetrics(context.Context) ([]*entity.Metrics, error)
-	Test() bool
 }
 
 type dbAdapter struct {
@@ -58,21 +57,13 @@ WHERE
     tbl::text LIKE $1
 LIMIT 1`
 
-func (a *dbAdapter) Test() bool {
-	rows, err := a.conn.Queryx(test, "%PopulateCounter1625326%")
-	if err != nil {
-		return false
-	}
-	defer rows.Close()
-	return rows.Next()
-}
 func (a *dbAdapter) StoreMetrics(ctx context.Context, metrics []*entity.Metrics) error {
 	ctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
 	defer cancel()
 	tx := a.conn.MustBegin()
 	defer tx.Rollback()
 	for _, m := range metrics {
-		mt, err := a.getMetricsByName(ctx, m.ID)
+		mt, err := a.getMetricsByID(m.ID)
 		if err != nil {
 			return err
 		}
@@ -118,9 +109,7 @@ func (a *dbAdapter) commitScheme() error {
 	}
 	return nil
 }
-func (a *dbAdapter) getMetricsById(ctx context.Context, id int64) (*entity.Metrics, error) {
-	ctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
-	defer cancel()
+func (a *dbAdapter) getMetricsByID(id string) (*entity.Metrics, error) {
 	rows, err := a.conn.Queryx(getByID, id)
 	if err != nil {
 		return nil, err
@@ -135,34 +124,18 @@ func (a *dbAdapter) getMetricsById(ctx context.Context, id int64) (*entity.Metri
 	}
 	return &m, nil
 }
-func (a *dbAdapter) getMetricsByName(ctx context.Context, id string) (*entity.Metrics, error) {
-	ctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
-	defer cancel()
-	rows, err := a.conn.Queryx(getByID, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var m entity.Metrics
-	for rows.Next() {
-		err = rows.StructScan(&m)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &m, nil
-}
-func (a *dbAdapter) updateMetrics(ctx context.Context, metrics []*entity.Metrics) error {
-	ctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
-	defer cancel()
-	tx := a.conn.MustBegin()
-	for _, m := range metrics {
-		tx.MustExec(update, m.MType, m.Delta, m.Value, m.Hash, m.ID)
-	}
-	defer tx.Rollback()
-	err := tx.Commit()
-	if err != nil {
-		return err
-	}
-	return nil
-}
+
+//func (a *dbAdapter) updateMetrics(ctx context.Context, metrics []*entity.Metrics) error {
+//	ctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
+//	defer cancel()
+//	tx := a.conn.MustBegin()
+//	for _, m := range metrics {
+//		tx.MustExec(update, m.MType, m.Delta, m.Value, m.Hash, m.ID)
+//	}
+//	defer tx.Rollback()
+//	err := tx.Commit()
+//	if err != nil {
+//		return err
+//	}
+//	return nil
+//}
