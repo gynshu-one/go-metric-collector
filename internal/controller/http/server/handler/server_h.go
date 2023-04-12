@@ -110,7 +110,7 @@ func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 		return
 	}
 	if config.GetConfig().Server.StoreInterval == 0 {
-		go h.storage.Dump(ctx.Request.Context())
+		go h.storage.Dump()
 	}
 	ctx.JSON(http.StatusOK, val)
 }
@@ -150,7 +150,7 @@ func (h *handler) UpdateMetrics(ctx *gin.Context) {
 		return
 	}
 	if config.GetConfig().Server.StoreInterval == 0 {
-		go h.storage.Dump(ctx.Request.Context())
+		go h.storage.Dump()
 	}
 	ctx.JSON(http.StatusOK, val)
 }

@@ -29,7 +29,7 @@ var (
 	router  *gin.Engine
 	dbConn  postgres.DBConn
 
-	dbAdapter db_adapters.DbAdapter
+	dbAdapter db_adapters.DBAdapter
 )
 
 func init() {
@@ -73,7 +73,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
-	storage.Dump(ctx)
+	storage.Dump()
 	// The context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling
 	ctxShut, cancel := context.WithTimeout(ctx, 5*time.Second)

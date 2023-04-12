@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	config "github.com/gynshu-one/go-metric-collector/internal/config/server"
@@ -15,15 +14,15 @@ import (
 
 type ServerStorage interface {
 	service.MemStorage
-	Dump(context.Context)
-	Restore(context.Context)
+	Dump()
+	Restore()
 }
 type serverUseCase struct {
 	service.MemStorage
-	dbAdapter db_adapters.DbAdapter
+	dbAdapter db_adapters.DBAdapter
 }
 
-func NewServerUseCase(MemStorage service.MemStorage, dbAdapter db_adapters.DbAdapter) *serverUseCase {
+func NewServerUseCase(MemStorage service.MemStorage, dbAdapter db_adapters.DBAdapter) *serverUseCase {
 	s := &serverUseCase{
 		MemStorage: MemStorage,
 		dbAdapter:  dbAdapter,
@@ -34,36 +33,36 @@ func NewServerUseCase(MemStorage service.MemStorage, dbAdapter db_adapters.DbAda
 
 func (S *serverUseCase) filesDaemon() {
 	if config.GetConfig().Server.Restore {
-		S.Restore(context.Background())
+		S.Restore()
 	}
 	if config.GetConfig().Server.StoreInterval != 0 {
 		ticker := time.NewTicker(config.GetConfig().Server.StoreInterval)
 		go func() {
 			for {
 				t := <-ticker.C
-				S.Dump(context.Background())
+				S.Dump()
 				fmt.Println("Saved to file at", t)
 			}
 		}()
 	}
 }
-func (S *serverUseCase) Dump(ctx context.Context) {
+func (S *serverUseCase) Dump() {
 	if config.GetConfig().Database.Address != "" {
-		S.toDB(ctx)
+		S.toDB()
 	} else {
 		S.toFile()
 	}
 
 }
-func (S *serverUseCase) Restore(ctx context.Context) {
+func (S *serverUseCase) Restore() {
 	if config.GetConfig().Database.Address != "" {
-		S.fromDB(ctx)
+		S.fromDB()
 	} else {
 		S.fromFile()
 	}
 }
-func (S *serverUseCase) fromDB(ctx context.Context) {
-	metrics, err := S.dbAdapter.GetMetrics(ctx)
+func (S *serverUseCase) fromDB() {
+	metrics, err := S.dbAdapter.GetMetrics()
 	if err != nil {
 		return
 	}
@@ -72,12 +71,12 @@ func (S *serverUseCase) fromDB(ctx context.Context) {
 	}
 }
 
-func (S *serverUseCase) toDB(ctx context.Context) {
+func (S *serverUseCase) toDB() {
 	allMetrics := make([]*entity.Metrics, 0)
 	S.ApplyToAll(func(metrics *entity.Metrics) {
 		allMetrics = append(allMetrics, metrics)
 	})
-	err := S.dbAdapter.StoreMetrics(ctx, allMetrics)
+	err := S.dbAdapter.StoreMetrics(allMetrics)
 	if err != nil {
 		log.Fatal(err)
 	}

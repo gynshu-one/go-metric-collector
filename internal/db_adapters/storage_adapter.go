@@ -1,21 +1,19 @@
 package db_adapters
 
 import (
-	"context"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/jmoiron/sqlx"
 	"log"
-	"time"
 )
 
-type DbAdapter interface {
-	StoreMetrics(context.Context, []*entity.Metrics) error
-	GetMetrics(context.Context) ([]*entity.Metrics, error)
+type DBAdapter interface {
+	StoreMetrics([]*entity.Metrics) error
+	GetMetrics() ([]*entity.Metrics, error)
 }
 
 type dbAdapter struct {
 	conn *sqlx.DB
-	DbAdapter
+	DBAdapter
 }
 
 func NewAdapter(conn *sqlx.DB) *dbAdapter {
@@ -57,9 +55,7 @@ WHERE
     tbl::text LIKE $1
 LIMIT 1`
 
-func (a *dbAdapter) StoreMetrics(ctx context.Context, metrics []*entity.Metrics) error {
-	ctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
-	defer cancel()
+func (a *dbAdapter) StoreMetrics(metrics []*entity.Metrics) error {
 	tx := a.conn.MustBegin()
 	defer tx.Rollback()
 	for _, m := range metrics {
@@ -79,9 +75,7 @@ func (a *dbAdapter) StoreMetrics(ctx context.Context, metrics []*entity.Metrics)
 	}
 	return nil
 }
-func (a *dbAdapter) GetMetrics(ctx context.Context) ([]*entity.Metrics, error) {
-	ctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
-	defer cancel()
+func (a *dbAdapter) GetMetrics() ([]*entity.Metrics, error) {
 	rows, err := a.conn.Queryx(selectAll)
 	defer rows.Close()
 	if err != nil {
@@ -124,18 +118,3 @@ func (a *dbAdapter) getMetricsByID(id string) (*entity.Metrics, error) {
 	}
 	return &m, nil
 }
-
-//func (a *dbAdapter) updateMetrics(ctx context.Context, metrics []*entity.Metrics) error {
-//	ctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
-//	defer cancel()
-//	tx := a.conn.MustBegin()
-//	for _, m := range metrics {
-//		tx.MustExec(update, m.MType, m.Delta, m.Value, m.Hash, m.ID)
-//	}
-//	defer tx.Rollback()
-//	err := tx.Commit()
-//	if err != nil {
-//		return err
-//	}
-//	return nil
-//}
