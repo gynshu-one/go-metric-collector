@@ -27,17 +27,17 @@ func (db *dbConn) GetConn() *sqlx.DB {
 	return db.conn
 }
 func (db *dbConn) Connect() error {
-	dbUrl, err := url.Parse(config.GetConfig().Database.Address)
+	dbURL, err := url.Parse(config.GetConfig().Database.Address)
 	if err != nil {
 		panic(err)
 	}
 	var (
-		host    = strings.Split(dbUrl.Host, ":")[0]
-		port    = strings.Split(dbUrl.Host, ":")[1]
-		user    = dbUrl.User.Username()
-		pass, _ = dbUrl.User.Password()
-		dbname  = dbUrl.Path[1:]
-		mode    = dbUrl.Query().Get("sslmode")
+		host    = strings.Split(dbURL.Host, ":")[0]
+		port    = strings.Split(dbURL.Host, ":")[1]
+		user    = dbURL.User.Username()
+		pass, _ = dbURL.User.Password()
+		dbname  = dbURL.Path[1:]
+		mode    = dbURL.Query().Get("sslmode")
 	)
 	// compose connection string
 	composed := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
