@@ -91,5 +91,5 @@ func (config *config) readServerFlags() {
 	flag.StringVar(&config.Key, "k", "", "hash key")
 	flag.BoolVar(&config.Server.Restore, "r", true, "restore")
 	flag.StringVar(&config.Database.Address, "d", "", "DB address")
-	flag.Parse()
+	//flag.Parse()
 }

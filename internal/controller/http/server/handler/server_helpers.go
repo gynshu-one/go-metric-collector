@@ -46,9 +46,6 @@ func setPreCheck(m *entity.Metrics) error {
 	// Hash part
 	if config.GetConfig().Key != "" {
 		inputHash := m.Hash
-		if inputHash == "" {
-			return errors.New(entity.HashNotProvided)
-		}
 		m.CalculateAndWriteHash(config.GetConfig().Key)
 		if !hmac.Equal([]byte(inputHash), []byte(m.Hash)) {
 			return errors.New(entity.InvalidHash)

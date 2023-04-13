@@ -9,6 +9,7 @@ import (
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	"log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -16,21 +17,35 @@ type ServerStorage interface {
 	service.MemStorage
 	Dump()
 	Restore()
+	SetFltPrc(name, p string)
+	GetFltPrc(name string) int
 }
 type serverUseCase struct {
 	service.MemStorage
-	dbAdapter adapters.DBAdapter
+	dbAdapter    adapters.DBAdapter
+	fltPrecision map[string]int
 }
 
 func NewServerUseCase(MemStorage service.MemStorage, dbAdapter adapters.DBAdapter) *serverUseCase {
 	s := &serverUseCase{
-		MemStorage: MemStorage,
-		dbAdapter:  dbAdapter,
+		MemStorage:   MemStorage,
+		dbAdapter:    dbAdapter,
+		fltPrecision: make(map[string]int),
 	}
 	s.filesDaemon()
 	return s
 }
-
+func (S *serverUseCase) SetFltPrc(name, p string) {
+	precision := strings.Split(p, ".")
+	if len(precision) < 2 {
+		S.fltPrecision[name] = 0
+		return
+	}
+	S.fltPrecision[name] = len(precision[1])
+}
+func (S *serverUseCase) GetFltPrc(name string) int {
+	return S.fltPrecision[name]
+}
 func (S *serverUseCase) filesDaemon() {
 	if config.GetConfig().Server.Restore {
 		S.Restore()

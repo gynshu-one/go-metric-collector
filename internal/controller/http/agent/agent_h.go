@@ -92,13 +92,13 @@ func (h *handler) report() {
 	if err == nil {
 		return
 	}
-	fmt.Printf("Bulk report unsuccessful: %v", err)
-	h.memory.ApplyToAll(h.makeReport)
+	//fmt.Printf("Bulk report unsuccessful: %v", err)
+	h.memory.ApplyToAll(makeReport)
 }
 
 // MakeReport makes a report to the server
 // Notice that serverAddr must include the protocol
-func (h *handler) makeReport(m *entity.Metrics) {
+func makeReport(m *entity.Metrics) {
 	var err error
 	jsonData, err := json.Marshal(&m)
 	if err != nil {
@@ -110,10 +110,11 @@ func (h *handler) makeReport(m *entity.Metrics) {
 		Post(config.GetConfig().Server.Address + "/update/")
 
 	if err != nil {
-		fmt.Printf("Error: %v", err)
+		//fmt.Printf("Error: %v", err)
 		return
 	}
-	fmt.Printf("Response: %v", resp)
+	defer resp.RawBody().Close()
+	//fmt.Printf("Response: %v", resp)
 }
 
 func (h *handler) bulkReport() error {

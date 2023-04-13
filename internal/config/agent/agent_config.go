@@ -59,7 +59,7 @@ func (config *config) readAgentFlags() {
 	// read flags
 	flag.CommandLine.Init("go-metric-collector", flag.ContinueOnError)
 	flag.StringVar(&config.Server.Address, "a", "localhost:8080", "server address")
-	flag.StringVar(&config.Key, "k", "", "hash key")
+	flag.StringVar(&config.Key, "k", "/tmp/devops-metrics-db.json", "hash key")
 	flag.DurationVar(&config.Agent.PollInterval, "p", 1*time.Second, "poll interval")
 	flag.DurationVar(&config.Agent.ReportInterval, "r", 2*time.Second, "report interval")
 	flag.Parse()

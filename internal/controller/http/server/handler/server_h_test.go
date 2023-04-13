@@ -217,6 +217,8 @@ func TestUpdateMetrics(t *testing.T) {
 			val := ""
 			if tc.arg.Delta != nil {
 				val = strconv.FormatInt(*tc.arg.Delta, 10)
+			} else {
+				val = strconv.FormatFloat(*tc.arg.Value, 'f', 3, 64)
 			}
 			url := fmt.Sprintf("/update/%s/%s/%s", tc.arg.MType, tc.arg.ID, val)
 			req := httptest.NewRequest(http.MethodPost, url, nil)

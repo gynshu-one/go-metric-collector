@@ -30,7 +30,7 @@ func TestAgent(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/update/", r.URL.Path)
+				assert.Equal(t, "/updates/", r.URL.Path)
 				assert.Equal(t, "POST", r.Method)
 				w.WriteHeader(http.StatusOK)
 			}))

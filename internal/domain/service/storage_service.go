@@ -1,7 +1,6 @@
 package service
 
 import (
-	config "github.com/gynshu-one/go-metric-collector/internal/config/server"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"log"
@@ -41,17 +40,12 @@ func (M *memService) Set(m *entity.Metrics) *entity.Metrics {
 		}
 		switch m.MType {
 		case entity.GaugeType:
-			val := m.Value
-			M.repo[m.ID].Value = val
+			M.repo[m.ID].Value = m.Value
 		case entity.CounterType:
-			delta := m.Delta
-			*M.repo[m.ID].Delta = *M.repo[m.ID].Delta + *delta
+			*M.repo[m.ID].Delta = *M.repo[m.ID].Delta + *m.Delta
 		}
 	} else {
 		M.repo[m.ID] = m
-	}
-	if config.GetConfig().Key != "" {
-		M.repo[m.ID].CalculateAndWriteHash(config.GetConfig().Key)
 	}
 	return M.repo[m.ID]
 }

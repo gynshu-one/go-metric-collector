@@ -32,6 +32,18 @@ type Metrics struct {
 	Hash  string   `json:"hash,omitempty" db:"hash,omitempty"`
 }
 
+func (M *Metrics) String() string {
+	delta := int64(0)
+	value := float64(0)
+	if M.Delta != nil {
+		delta = *M.Delta
+	}
+	if M.Value != nil {
+		value = *M.Value
+	}
+	return fmt.Sprintf("\nID: %s, \nType: %s, \nDelta: %d, \nValue: %f, \nHash: %s", M.ID, M.MType, delta, value, M.Hash)
+}
+
 type ApplyToAll func(*Metrics)
 
 // CalculateAndWriteHash calculates HMAC hash of the message with the key and writes it to the Hash field
@@ -39,20 +51,13 @@ type ApplyToAll func(*Metrics)
 // In my opinion this is the best way to do it, otherwise we would have to calculate the hash
 // in other package where we should import Metrics struct for simplicity, or in both handlers
 func (M *Metrics) CalculateAndWriteHash(key string) []byte {
-	//HMAC Sign  message hash with key
-	if key == "" {
-		M.Hash = ""
-		return nil
-	}
 	h := hmac.New(sha256.New, []byte(key))
 	message := ""
 	switch M.MType {
 	case GaugeType:
-		value := *M.Value
-		message = fmt.Sprintf("%s:%s:%f", M.ID, M.MType, value)
+		message = fmt.Sprintf("%s:%s:%f", M.ID, M.MType, *M.Value)
 	case CounterType:
-		delta := *M.Delta
-		message = fmt.Sprintf("%s:%s:%d", M.ID, M.MType, delta)
+		message = fmt.Sprintf("%s:%s:%d", M.ID, M.MType, *M.Delta)
 	}
 	h.Write([]byte(message))
 	M.Hash = hex.EncodeToString(h.Sum(nil))
