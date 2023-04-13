@@ -35,7 +35,7 @@ func (S *serverUseCase) filesDaemon() {
 	if config.GetConfig().Server.Restore {
 		S.Restore()
 	}
-	if config.GetConfig().Server.StoreInterval != 0 {
+	if config.GetConfig().Server.StoreInterval != 0 && config.GetConfig().Database.Address == "" {
 		ticker := time.NewTicker(config.GetConfig().Server.StoreInterval)
 		go func() {
 			for {

@@ -130,8 +130,8 @@ func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
 		return
 	}
-	if config.GetConfig().Server.StoreInterval == 0 {
-		go h.storage.Dump()
+	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
+		h.storage.Dump()
 	}
 	ctx.JSON(http.StatusOK, val)
 }
@@ -177,8 +177,8 @@ func (h *handler) UpdateMetrics(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
 		return
 	}
-	if config.GetConfig().Server.StoreInterval == 0 {
-		go h.storage.Dump()
+	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
+		h.storage.Dump()
 	}
 	ctx.JSON(http.StatusOK, val)
 }
