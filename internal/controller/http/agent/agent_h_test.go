@@ -36,7 +36,7 @@ func TestAgent(t *testing.T) {
 			}))
 			defer server.Close()
 			config.GetConfig().Server.Address = server.URL
-			newAgent := NewAgent(service.NewMemService(&sync.Map{}))
+			newAgent := NewAgent(service.NewMemService(make(map[string]*entity.Metrics)))
 			var wg sync.WaitGroup
 			wg.Add(1)
 			go func() {

@@ -72,10 +72,7 @@ func (S *serverUseCase) fromDB() {
 }
 
 func (S *serverUseCase) toDB() {
-	allMetrics := make([]*entity.Metrics, 0)
-	S.ApplyToAll(func(metrics *entity.Metrics) {
-		allMetrics = append(allMetrics, metrics)
-	})
+	allMetrics := S.GetAll()
 	err := S.dbAdapter.StoreMetrics(allMetrics)
 	if err != nil {
 		log.Fatal(err)
@@ -102,10 +99,7 @@ func (S *serverUseCase) fromFile() {
 }
 
 func (S *serverUseCase) toFile() {
-	allMetrics := make([]*entity.Metrics, 0)
-	S.ApplyToAll(func(metrics *entity.Metrics) {
-		allMetrics = append(allMetrics, metrics)
-	})
+	allMetrics := S.GetAll()
 	// save to jsonData file
 	jsonData, err := json.Marshal(allMetrics)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 	hand "github.com/gynshu-one/go-metric-collector/internal/controller/http/server/handler"
 	"github.com/gynshu-one/go-metric-collector/internal/controller/http/server/middlewares"
 	"github.com/gynshu-one/go-metric-collector/internal/controller/http/server/routers"
+	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	usecase "github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
 	"github.com/gynshu-one/go-metric-collector/pkg/client/postgres"
@@ -17,7 +18,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -59,7 +59,7 @@ func main() {
 			log.Fatal("Database connection error: ", err)
 		}
 	}
-	storage = usecase.NewServerUseCase(service.NewMemService(&sync.Map{}), dbAdapter)
+	storage = usecase.NewServerUseCase(service.NewMemService(make(map[string]*entity.Metrics)), dbAdapter)
 	handler = hand.NewServerHandler(storage, dbConn)
 	router.Use(cors.Default(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression))
 	routers.MetricsRoute(router, handler)

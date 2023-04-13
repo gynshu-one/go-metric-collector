@@ -41,33 +41,24 @@ VALUES ($1, $2, $3, $4, $5)
 const selectAll = `
 SELECT * FROM metrics
 `
-const update = `
-UPDATE metrics SET type = $2, delta = $3, value = $4, hash = $5 WHERE id = $1
-`
-const getByID = `
-SELECT * FROM metrics WHERE id = $1
-`
 
-const test = `
-SELECT true
-FROM  metrics  AS tbl
-WHERE
-    tbl::text LIKE $1
-LIMIT 1`
+// const update = `
+// UPDATE metrics SET type = $2, delta = $3, value = $4, hash = $5 WHERE id = $1
+// `
+// const getByID = `
+// SELECT * FROM metrics WHERE id = $1
+// `
+const insertOrUpdate = `
+INSERT INTO metrics ( id, type, delta, value, hash)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (id) DO UPDATE SET type = $2, delta = $3, value = $4, hash = $5
+`
 
 func (a *dbAdapter) StoreMetrics(metrics []*entity.Metrics) error {
 	tx := a.conn.MustBegin()
 	defer tx.Rollback()
 	for _, m := range metrics {
-		mt, err := a.getMetricsByID(m.ID)
-		if err != nil {
-			return err
-		}
-		if mt.ID != "" {
-			tx.MustExec(update, mt.ID, m.MType, m.Delta, m.Value, m.Hash)
-			continue
-		}
-		tx.MustExec(insert, m.ID, m.MType, m.Delta, m.Value, m.Hash)
+		tx.MustExec(insertOrUpdate, m.ID, m.MType, m.Delta, m.Value, m.Hash)
 	}
 	err := tx.Commit()
 	if err != nil {
@@ -103,18 +94,19 @@ func (a *dbAdapter) commitScheme() error {
 	}
 	return nil
 }
-func (a *dbAdapter) getMetricsByID(id string) (*entity.Metrics, error) {
-	rows, err := a.conn.Queryx(getByID, id)
-	if err != nil || rows.Err() != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var m entity.Metrics
-	for rows.Next() {
-		err = rows.StructScan(&m)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &m, nil
-}
+
+//func (a *dbAdapter) getMetricsByID(id string) (*entity.Metrics, error) {
+//	rows, err := a.conn.Queryx(getByID, id)
+//	if err != nil || rows.Err() != nil {
+//		return nil, err
+//	}
+//	defer rows.Close()
+//	var m entity.Metrics
+//	for rows.Next() {
+//		err = rows.StructScan(&m)
+//		if err != nil {
+//			return nil, err
+//		}
+//	}
+//	return &m, nil
+//}

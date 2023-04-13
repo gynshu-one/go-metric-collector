@@ -88,7 +88,11 @@ func (h *handler) readRuntime() {
 	}
 }
 func (h *handler) report() {
-	// check if the metric is presented in MemStorage
+	err := h.bulkReport()
+	if err == nil {
+		return
+	}
+	fmt.Printf("Bulk report unsuccessful: %v", err)
 	h.memory.ApplyToAll(h.makeReport)
 }
 
@@ -96,9 +100,6 @@ func (h *handler) report() {
 // Notice that serverAddr must include the protocol
 func (h *handler) makeReport(m *entity.Metrics) {
 	var err error
-	if config.GetConfig().Key != "" {
-		m.CalculateAndWriteHash(config.GetConfig().Key)
-	}
 	jsonData, err := json.Marshal(&m)
 	if err != nil {
 		log.Fatal(err)
@@ -113,4 +114,29 @@ func (h *handler) makeReport(m *entity.Metrics) {
 		return
 	}
 	fmt.Printf("Response: %v", resp)
+}
+
+func (h *handler) bulkReport() error {
+	m := h.memory.GetAll()
+	if len(m) == 0 {
+		return nil
+	}
+	var err error
+	jsonData, err := json.Marshal(&m)
+	if err != nil {
+		log.Fatal(err)
+	}
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(jsonData).
+		Post(config.GetConfig().Server.Address + "/updates/")
+
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+		return err
+	}
+	if resp.StatusCode() != 200 {
+		return fmt.Errorf("response: %v", resp)
+	}
+	return nil
 }

@@ -19,17 +19,17 @@ const (
 	InvalidHash           = "invalid hash"
 	HashNotProvided       = "env var KEY is set but hash is missing"
 
-	DBConnError = "db connection error"
+	DBConnError   = "db connection error"
+	InvalidMetric = "invalid metric"
+	EmptyMetric   = "empty metric"
 )
 
 type Metrics struct {
-	ID    string `json:"id" db:"id,primarykey"`
-	MType string `json:"type" db:"type"`
-	Delta *int64 `json:"delta,omitempty" db:"delta,omitempty" `
-	// Этот костыль нужен для того, чтобы возвращать значение с точностью до Х знаков автотеста
-	FloatPrecision int      `json:"float_precision,omitempty" db:"float_precision,omitempty"`
-	Value          *float64 `json:"value,omitempty" db:"value,omitempty"`
-	Hash           string   `json:"hash,omitempty" db:"hash,omitempty"`
+	ID    string   `json:"id" db:"id,primarykey"`
+	MType string   `json:"type" db:"type"`
+	Delta *int64   `json:"delta,omitempty" db:"delta,omitempty" `
+	Value *float64 `json:"value,omitempty" db:"value,omitempty"`
+	Hash  string   `json:"hash,omitempty" db:"hash,omitempty"`
 }
 
 type ApplyToAll func(*Metrics)

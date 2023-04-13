@@ -10,10 +10,11 @@ func MetricsRoute(router *gin.Engine, handler handler.Handler) {
 	router.GET("/live/", handler.Live)
 
 	router.POST("/value/", handler.ValueJSON)
-	router.POST("/update/", handler.UpdateMetricsJSON)
+	router.POST("/update/", handler.UpdateMetricJSON)
+	router.POST("/updates/", handler.UpdateMetricsJSON)
 
 	router.GET("/value/:metric_type/:metric_name", handler.Value)
-	router.POST("/update/:metric_type/:metric_name/:metric_value", handler.UpdateMetrics)
+	router.POST("/update/:metric_type/:metric_name/:metric_value", handler.UpdateMetric)
 
 	router.GET("/ping", handler.PingDB)
 }

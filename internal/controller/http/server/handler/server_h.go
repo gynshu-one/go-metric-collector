@@ -8,7 +8,6 @@ import (
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
 	"github.com/gynshu-one/go-metric-collector/pkg/client/postgres"
-	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -25,8 +24,9 @@ type Handler interface {
 	Live(ctx *gin.Context)
 	ValueJSON(ctx *gin.Context)
 	Value(ctx *gin.Context)
+	UpdateMetricJSON(ctx *gin.Context)
 	UpdateMetricsJSON(ctx *gin.Context)
-	UpdateMetrics(ctx *gin.Context)
+	UpdateMetric(ctx *gin.Context)
 	HTMLAllMetrics(ctx *gin.Context)
 	PingDB(ctx *gin.Context)
 }
@@ -60,9 +60,6 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.MetricNotFound})
 		return
 	}
-	if config.GetConfig().Key != "" {
-		val.CalculateAndWriteHash(config.GetConfig().Key)
-	}
 	ctx.JSON(http.StatusOK, val)
 }
 func (h *handler) Value(ctx *gin.Context) {
@@ -82,7 +79,7 @@ func (h *handler) Value(ctx *gin.Context) {
 	}
 	if val.Value != nil {
 		floatVal := *val.Value
-		floatStr := strconv.FormatFloat(floatVal, 'f', val.FloatPrecision, 64)
+		floatStr := strconv.FormatFloat(floatVal, 'f', 3, 64)
 		ctx.Data(http.StatusOK, "text/plain", []byte(floatStr))
 	} else if val.Delta != nil {
 		intDelta := *val.Delta
@@ -91,39 +88,17 @@ func (h *handler) Value(ctx *gin.Context) {
 	}
 
 }
-func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
+func (h *handler) UpdateMetricJSON(ctx *gin.Context) {
 	var m entity.Metrics
-	var value struct {
-		Value json.RawMessage `json:"value"`
-	}
-	body := ctx.Request.Body
-	defer body.Close()
-	bodyBytes, err := io.ReadAll(body)
+	err := json.NewDecoder(ctx.Request.Body).Decode(&m)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
-		return
-	}
-	err = json.Unmarshal(bodyBytes, &value)
-	if err != nil {
-		value.Value = nil
-	}
-	err = json.Unmarshal(bodyBytes, &m)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.InvalidMetric})
 		return
 	}
 	err = setPreCheck(&m)
 	if err != nil {
 		handleCustomError(ctx, err)
 		return
-	}
-	if value.Value != nil {
-		decimalPlaces := strings.Split(string(value.Value), ".")
-		if len(decimalPlaces) > 1 {
-			m.FloatPrecision = len(decimalPlaces[1])
-		} else {
-			m.FloatPrecision = 0
-		}
 	}
 	val := h.storage.Set(&m)
 	if val == nil {
@@ -136,7 +111,37 @@ func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, val)
 }
 
-func (h *handler) UpdateMetrics(ctx *gin.Context) {
+func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
+	var m []*entity.Metrics
+	err := json.NewDecoder(ctx.Request.Body).Decode(&m)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.InvalidMetric})
+		return
+	}
+	if len(m) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.EmptyMetric})
+		return
+	}
+	for i, metric := range m {
+		err = setPreCheck(metric)
+		if err != nil {
+			handleCustomError(ctx, err)
+			return
+		}
+		val := h.storage.Set(metric)
+		if val == nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
+			return
+		}
+		m[i] = val
+	}
+	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
+		h.storage.Dump()
+	}
+	ctx.JSON(http.StatusOK, m)
+}
+
+func (h *handler) UpdateMetric(ctx *gin.Context) {
 	m := entity.Metrics{
 		ID:    ctx.Param("metric_name"),
 		MType: ctx.Param("metric_type"),
@@ -150,13 +155,6 @@ func (h *handler) UpdateMetrics(ctx *gin.Context) {
 			return
 		}
 		m.Value = &val
-		decimalPlaces := strings.Split(metricValue, ".")
-		if len(decimalPlaces) > 1 {
-			m.FloatPrecision = len(decimalPlaces[1])
-		} else {
-			m.FloatPrecision = 0
-		}
-
 	case entity.CounterType:
 		val, err_ := strconv.ParseInt(metricValue, 10, 64)
 		if err_ != nil {
@@ -182,7 +180,6 @@ func (h *handler) UpdateMetrics(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, val)
 }
-
 func (h *handler) HTMLAllMetrics(ctx *gin.Context) {
 	body := generateHTMLTable(h.storage)
 	// Sort the table by type, name, so it's easier to read when page updates

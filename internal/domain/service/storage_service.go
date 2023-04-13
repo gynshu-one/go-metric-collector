@@ -1,6 +1,7 @@
 package service
 
 import (
+	config "github.com/gynshu-one/go-metric-collector/internal/config/server"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"log"
@@ -11,54 +12,72 @@ type MemStorage interface {
 	Get(m *entity.Metrics) *entity.Metrics
 	Set(m *entity.Metrics) *entity.Metrics
 	ApplyToAll(f entity.ApplyToAll, exclude ...string)
+	GetAll() []*entity.Metrics
 }
 
 type memService struct {
-	repo *sync.Map
+	mu   sync.RWMutex
+	repo map[string]*entity.Metrics
 }
 
-func NewMemService(repo *sync.Map) *memService {
+func NewMemService(repo map[string]*entity.Metrics) *memService {
 	return &memService{repo: repo}
 }
 
-func (M memService) Get(m *entity.Metrics) *entity.Metrics {
-	found, ok := M.repo.Load(m.ID)
-	if !ok {
-		return nil
-	}
-	return found.(*entity.Metrics)
+func (M *memService) Get(m *entity.Metrics) *entity.Metrics {
+	M.mu.Lock()
+	defer M.mu.Unlock()
+	return M.repo[m.ID]
 }
 
-func (M memService) Set(m *entity.Metrics) *entity.Metrics {
-	found, ok := M.repo.LoadOrStore(m.ID, m)
+func (M *memService) Set(m *entity.Metrics) *entity.Metrics {
+	M.mu.Lock()
+	defer M.mu.Unlock()
+	_, ok := M.repo[m.ID]
 	if ok {
-		if found.(*entity.Metrics).MType != m.MType {
+		if M.repo[m.ID].MType != m.MType {
 			log.Printf("name and type you have sent mismatch with the one in the storage: %s", m.ID)
 			return nil
 		}
 		switch m.MType {
 		case entity.GaugeType:
-			*found.(*entity.Metrics).Value = *m.Value
-			found.(*entity.Metrics).FloatPrecision = m.FloatPrecision
+			val := m.Value
+			M.repo[m.ID].Value = val
 		case entity.CounterType:
-			*found.(*entity.Metrics).Delta += *m.Delta
+			delta := m.Delta
+			*M.repo[m.ID].Delta = *M.repo[m.ID].Delta + *delta
 		}
-		M.repo.Store(m.ID, found.(*entity.Metrics))
+	} else {
+		M.repo[m.ID] = m
 	}
-	return found.(*entity.Metrics)
+	if config.GetConfig().Key != "" {
+		M.repo[m.ID].CalculateAndWriteHash(config.GetConfig().Key)
+	}
+	return M.repo[m.ID]
 }
 
 // ApplyToAll applies the function f to all metrics in the MemStorage
 // Default exclusion is "PauseNs", "PauseEnd", "EnableGC", "DebugGC", "BySize"
 // Additional exclusion can be passed as a variadic argument
 // This function does not change the value of any metric
-func (M memService) ApplyToAll(f entity.ApplyToAll, exclude ...string) {
+func (M *memService) ApplyToAll(f entity.ApplyToAll, exclude ...string) {
 	var defaultExclusion = []string{"PauseNs", "PauseEnd", "EnableGC", "DebugGC", "BySize"}
 	defaultExclusion = append(defaultExclusion, exclude...)
-	M.repo.Range(func(key, value interface{}) bool {
-		if !tools.Contains(defaultExclusion, key.(string)) {
-			f(value.(*entity.Metrics))
+	M.mu.Lock()
+	defer M.mu.Unlock()
+	for k, v := range M.repo {
+		if !tools.Contains(defaultExclusion, k) {
+			f(v)
 		}
-		return true
-	})
+	}
+}
+
+func (M *memService) GetAll() []*entity.Metrics {
+	var metrics []*entity.Metrics
+	M.mu.Lock()
+	defer M.mu.Unlock()
+	for _, v := range M.repo {
+		metrics = append(metrics, v)
+	}
+	return metrics
 }

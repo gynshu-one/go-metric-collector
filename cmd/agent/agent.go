@@ -2,8 +2,8 @@ package main
 
 import (
 	ag "github.com/gynshu-one/go-metric-collector/internal/controller/http/agent"
+	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
-	"sync"
 )
 
 var (
@@ -12,6 +12,6 @@ var (
 )
 
 func main() {
-	agent = ag.NewAgent(service.NewMemService(&sync.Map{}))
+	agent = ag.NewAgent(service.NewMemService(make(map[string]*entity.Metrics)))
 	agent.Start()
 }
