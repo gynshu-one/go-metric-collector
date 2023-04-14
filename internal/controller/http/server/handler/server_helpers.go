@@ -8,6 +8,7 @@ import (
 	config "github.com/gynshu-one/go-metric-collector/internal/config/server"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -42,15 +43,11 @@ func setPreCheck(m *entity.Metrics) error {
 	if m.ID == "" {
 		return errors.New(entity.MetricNameNotProvided)
 	}
-
-	// Hash part
 	if config.GetConfig().Key != "" {
 		inputHash := m.Hash
-		if inputHash == "" {
-			return errors.New(entity.HashNotProvided)
-		}
-		m.CalculateAndWriteHash(config.GetConfig().Key)
+		m.CalculateHash(config.GetConfig().Key)
 		if !hmac.Equal([]byte(inputHash), []byte(m.Hash)) {
+			log.Println("Hash mismatch")
 			return errors.New(entity.InvalidHash)
 		}
 	}

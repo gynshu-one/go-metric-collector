@@ -9,6 +9,7 @@ import (
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
 	"github.com/gynshu-one/go-metric-collector/pkg/client/postgres"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -18,7 +19,7 @@ import (
 
 type handler struct {
 	storage storage.ServerStorage
-	db      postgres.DB
+	dbConn  postgres.DBConn
 }
 
 type Handler interface {
@@ -26,35 +27,23 @@ type Handler interface {
 	ValueJSON(ctx *gin.Context)
 	Value(ctx *gin.Context)
 	UpdateMetricsJSON(ctx *gin.Context)
-	UpdateMetrics(ctx *gin.Context)
+	BulkUpdateJSON(ctx *gin.Context)
+	UpdateMetric(ctx *gin.Context)
 	HTMLAllMetrics(ctx *gin.Context)
 	PingDB(ctx *gin.Context)
 }
 
-func NewServerHandler(storage storage.ServerStorage, db postgres.DB) *handler {
+func NewServerHandler(storage storage.ServerStorage, db postgres.DBConn) *handler {
 	hand := &handler{
 		storage: storage,
-		db:      db,
-	}
-	if config.GetConfig().Server.Restore {
-		hand.storage.Restore()
-	}
-	if config.GetConfig().Server.StoreInterval != 0 {
-		ticker := time.NewTicker(config.GetConfig().Server.StoreInterval)
-		go func() {
-			for {
-				t := <-ticker.C
-				hand.storage.Dump()
-				fmt.Println("Saved to file at", t)
-			}
-		}()
+		dbConn:  db,
 	}
 	return hand
 }
-func (h handler) Live(ctx *gin.Context) {
+func (h *handler) Live(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "ServerStorage is live"})
 }
-func (h handler) ValueJSON(ctx *gin.Context) {
+func (h *handler) ValueJSON(ctx *gin.Context) {
 	var m entity.Metrics
 	body := ctx.Request.Body
 	defer body.Close()
@@ -63,6 +52,7 @@ func (h handler) ValueJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
 		return
 	}
+	fmt.Printf("\nRequest: %s", m.String())
 	err = getPreCheck(&m)
 	if err != nil {
 		handleCustomError(ctx, err)
@@ -73,12 +63,14 @@ func (h handler) ValueJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.MetricNotFound})
 		return
 	}
+	v := *val
 	if config.GetConfig().Key != "" {
-		val.CalculateAndWriteHash(config.GetConfig().Key)
+		v.Hash = v.CalculateHash(config.GetConfig().Key)
 	}
-	ctx.JSON(http.StatusOK, val)
+	fmt.Printf("\nResponse: %s", v.String())
+	ctx.JSON(http.StatusOK, v)
 }
-func (h handler) Value(ctx *gin.Context) {
+func (h *handler) Value(ctx *gin.Context) {
 	m := entity.Metrics{
 		ID:    ctx.Param("metric_name"),
 		MType: ctx.Param("metric_type"),
@@ -94,23 +86,23 @@ func (h handler) Value(ctx *gin.Context) {
 		return
 	}
 	if val.Value != nil {
-		floatVal := *val.Value
-		floatStr := strconv.FormatFloat(floatVal, 'f', 3, 64)
-		ctx.Data(http.StatusOK, "text/plain", []byte(floatStr))
+		ctx.String(http.StatusOK, "%s",
+			strconv.FormatFloat(
+				*val.Value, 'f',
+				h.storage.GetFltPrc(m.ID),
+				64))
+		return
 	} else if val.Delta != nil {
-		intDelta := *val.Delta
-		intStr := strconv.FormatInt(intDelta, 10)
-		ctx.Data(http.StatusOK, "text/plain", []byte(intStr))
+		ctx.String(http.StatusOK, "%d", *val.Delta)
+		return
 	}
 
 }
-func (h handler) UpdateMetricsJSON(ctx *gin.Context) {
+func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 	var m entity.Metrics
-	body := ctx.Request.Body
-	defer body.Close()
-	err := json.NewDecoder(body).Decode(&m)
+	err := json.NewDecoder(ctx.Request.Body).Decode(&m)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.InvalidMetric})
 		return
 	}
 	err = setPreCheck(&m)
@@ -123,13 +115,16 @@ func (h handler) UpdateMetricsJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
 		return
 	}
-	if config.GetConfig().Server.StoreInterval == 0 {
-		go h.storage.Dump()
+	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
+		h.storage.Dump()
 	}
-	ctx.JSON(http.StatusOK, val)
+	v := *val
+	if config.GetConfig().Key != "" {
+		v.Hash = v.CalculateHash(config.GetConfig().Key)
+	}
+	ctx.JSON(http.StatusOK, v)
 }
-
-func (h handler) UpdateMetrics(ctx *gin.Context) {
+func (h *handler) UpdateMetric(ctx *gin.Context) {
 	m := entity.Metrics{
 		ID:    ctx.Param("metric_name"),
 		MType: ctx.Param("metric_type"),
@@ -163,13 +158,65 @@ func (h handler) UpdateMetrics(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
 		return
 	}
-	if config.GetConfig().Server.StoreInterval == 0 {
-		go h.storage.Dump()
+	h.storage.SetFltPrc(m.ID, metricValue)
+	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
+		h.storage.Dump()
 	}
-	ctx.JSON(http.StatusOK, val)
+	v := *val
+	if config.GetConfig().Key != "" {
+		v.Hash = v.CalculateHash(config.GetConfig().Key)
+	}
+	ctx.JSON(http.StatusOK, v)
 }
 
-func (h handler) HTMLAllMetrics(ctx *gin.Context) {
+func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
+	var m []*entity.Metrics
+	err := json.NewDecoder(ctx.Request.Body).Decode(&m)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.InvalidMetric})
+		return
+	}
+	if len(m) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.EmptyMetric})
+		return
+	}
+	fmt.Println("\n\nReceived metrics:")
+	var mapMetrics = make(map[string]*entity.Metrics)
+	for i, _ := range m {
+		//fmt.Println(metric)
+		err = setPreCheck(m[i])
+		if err != nil {
+			//handleCustomError(ctx, err)
+			//return
+			log.Println(err.Error())
+			continue
+		}
+		val := h.storage.Set(m[i])
+		if val == nil {
+			//ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
+			//return
+			log.Println(entity.NameTypeMismatch)
+			continue
+		}
+		mapMetrics[m[i].ID] = val
+	}
+	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
+		h.storage.Dump()
+	}
+	var metrics []entity.Metrics
+	fmt.Println("\n\nSending metrics:")
+	for i, _ := range mapMetrics {
+		//fmt.Println(metric)
+		v := *mapMetrics[i]
+		if config.GetConfig().Key != "" {
+			v.Hash = v.CalculateHash(config.GetConfig().Key)
+		}
+		metrics = append(metrics, v)
+	}
+	ctx.JSON(http.StatusOK, metrics)
+}
+
+func (h *handler) HTMLAllMetrics(ctx *gin.Context) {
 	body := generateHTMLTable(h.storage)
 	// Sort the table by type, name, so it's easier to read when page updates
 	sort.Strings(body)
@@ -182,12 +229,13 @@ func (h handler) HTMLAllMetrics(ctx *gin.Context) {
 	ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(sb.String()))
 }
 
-func (h handler) PingDB(ctx *gin.Context) {
-	c := context.Background()
-	err := h.db.Ping(c)
+func (h *handler) PingDB(ctx *gin.Context) {
+	c, cancel := context.WithTimeout(ctx.Request.Context(), 5*time.Second)
+	defer cancel()
+	err := h.dbConn.Ping(c)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "DB is live"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "DBConn is live"})
 }

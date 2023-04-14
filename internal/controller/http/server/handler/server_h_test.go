@@ -21,13 +21,13 @@ import (
 func setupRouter() (*gin.Engine, *handler) {
 	// Then init files
 	gin.SetMode(gin.TestMode)
-	h := NewServerHandler(usecase.NewServerUseCase(service.NewMemService(&sync.Map{})), nil)
+	h := NewServerHandler(usecase.NewServerUseCase(service.NewMemService(&sync.Map{}), nil), nil)
 	r := gin.Default()
 	r.GET("/live", h.Live)
 	r.GET("/value/:metric_type/:metric_name", h.Value)
 	r.POST("/value/", h.ValueJSON)
 	r.POST("/update/", h.UpdateMetricsJSON)
-	r.POST("/update/:metric_type/:metric_name/:metric_value", h.UpdateMetrics)
+	r.POST("/update/:metric_type/:metric_name/:metric_value", h.UpdateMetric)
 	r.GET("/html_all_metrics", h.HTMLAllMetrics)
 
 	return r, h
@@ -38,7 +38,7 @@ var (
 )
 
 func TestNewServerHandler(t *testing.T) {
-	h := NewServerHandler(usecase.NewServerUseCase(service.NewMemService(&sync.Map{})), nil)
+	h := NewServerHandler(usecase.NewServerUseCase(service.NewMemService(&sync.Map{}), nil), nil)
 	assert.NotNil(t, h)
 	assert.NotNil(t, h.storage)
 }
@@ -83,7 +83,7 @@ func TestValue(t *testing.T) {
 	metric := entity.Metrics{
 		ID:    "TestMetric",
 		MType: entity.GaugeType,
-		Value: tools.Float64Ptr(55.0),
+		Value: tools.Float64Ptr(55),
 	}
 	serverHandler.storage.Set(&metric)
 
@@ -92,7 +92,7 @@ func TestValue(t *testing.T) {
 
 	router.ServeHTTP(resp, req)
 	assert.Equal(t, http.StatusOK, resp.Code)
-	assert.Equal(t, "55.000", resp.Body.String())
+	assert.Equal(t, "55", resp.Body.String())
 }
 
 func TestUpdateMetricsJSON(t *testing.T) {
@@ -181,7 +181,7 @@ func TestUpdateMetrics(t *testing.T) {
 			arg: &entity.Metrics{
 				ID:    "TestGauge2",
 				MType: entity.GaugeType,
-				Value: tools.Float64Ptr(55.0),
+				Value: tools.Float64Ptr(55.000),
 			},
 			status: http.StatusOK,
 		},
@@ -199,7 +199,7 @@ func TestUpdateMetrics(t *testing.T) {
 			arg: &entity.Metrics{
 				ID:    "InvalidMetricType2",
 				MType: "aa",
-				Value: tools.Float64Ptr(55.0),
+				Value: tools.Float64Ptr(55.000),
 			},
 			status: http.StatusNotImplemented,
 		},
@@ -208,7 +208,7 @@ func TestUpdateMetrics(t *testing.T) {
 			arg: &entity.Metrics{
 				ID:    "InvalidTypeAndValue2",
 				MType: entity.CounterType,
-				Value: tools.Float64Ptr(55.0),
+				Value: tools.Float64Ptr(55.000),
 			},
 			status: http.StatusBadRequest,
 		},
@@ -216,11 +216,10 @@ func TestUpdateMetrics(t *testing.T) {
 	for _, tc := range TesCases {
 		t.Run(tc.name, func(t *testing.T) {
 			val := ""
-			if tc.arg.Value != nil {
-				val = strconv.FormatFloat(*tc.arg.Value, 'f', 3, 64)
-			}
 			if tc.arg.Delta != nil {
 				val = strconv.FormatInt(*tc.arg.Delta, 10)
+			} else {
+				val = strconv.FormatFloat(*tc.arg.Value, 'f', 3, 64)
 			}
 			url := fmt.Sprintf("/update/%s/%s/%s", tc.arg.MType, tc.arg.ID, val)
 			req := httptest.NewRequest(http.MethodPost, url, nil)

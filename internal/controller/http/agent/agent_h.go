@@ -88,17 +88,22 @@ func (h *handler) readRuntime() {
 	}
 }
 func (h *handler) report() {
-	// check if the metric is presented in MemStorage
-	h.memory.ApplyToAll(h.makeReport)
+	if config.GetConfig().Key != "" {
+		h.memory.ApplyToAll(func(m *entity.Metrics) {
+			m.Hash = m.CalculateHash(config.GetConfig().Key)
+		})
+	}
+	err := h.bulkReport()
+	if err == nil {
+		return
+	}
+	h.memory.ApplyToAll(makeReport)
 }
 
 // MakeReport makes a report to the server
 // Notice that serverAddr must include the protocol
-func (h *handler) makeReport(m *entity.Metrics) {
+func makeReport(m *entity.Metrics) {
 	var err error
-	if config.GetConfig().Key != "" {
-		m.CalculateAndWriteHash(config.GetConfig().Key)
-	}
 	jsonData, err := json.Marshal(&m)
 	if err != nil {
 		log.Fatal(err)
@@ -109,8 +114,5 @@ func (h *handler) makeReport(m *entity.Metrics) {
 		Post(config.GetConfig().Server.Address + "/update/")
 
 	if err != nil {
-		fmt.Printf("Error: %v", err)
-		return
-	}
-	fmt.Printf("Response: %v", resp)
-}
+		//fmt.Printf("Error: %v", err)
+		ret
