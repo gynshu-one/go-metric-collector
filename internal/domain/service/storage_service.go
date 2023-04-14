@@ -33,16 +33,17 @@ func (M memService) Get(m *entity.Metrics) *entity.Metrics {
 func (M memService) Set(m *entity.Metrics) *entity.Metrics {
 	found, ok := M.repo.Load(m.ID)
 	if ok {
-		if found.(*entity.Metrics).MType != m.MType {
-			log.Printf("name and type you have sent mismatch with the one in the storage: %s", m.ID)
-			return nil
-		}
+		//if found.(*entity.Metrics).MType != m.MType {
+		//	log.Printf("name and type you have sent mismatch with the one in the storage: \n%s\n%s", m.String(), found.(*entity.Metrics).String())
+		//	return nil
+		//}
 		switch m.MType {
 		case entity.GaugeType:
 			*found.(*entity.Metrics).Value = *m.Value
 		case entity.CounterType:
 			*found.(*entity.Metrics).Delta += *m.Delta
 		}
+		found.(*entity.Metrics).MType = m.MType
 		M.repo.Store(m.ID, found.(*entity.Metrics))
 	} else {
 		M.repo.Store(m.ID, m)
