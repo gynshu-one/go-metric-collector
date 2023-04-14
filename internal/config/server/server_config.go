@@ -88,8 +88,8 @@ func (config *config) readServerFlags() {
 	flag.StringVar(&config.Server.Address, "a", "localhost:8080", "server address")
 	flag.DurationVar(&config.Server.StoreInterval, "i", 300*time.Second, "store interval")
 	flag.StringVar(&config.Server.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")
-	flag.StringVar(&config.Key, "k", "/tmp/devops-metrics-db.json", "hash key")
+	flag.StringVar(&config.Key, "k", "", "hash key")
 	flag.BoolVar(&config.Server.Restore, "r", true, "restore")
-	flag.StringVar(&config.Database.Address, "d", "postgres://postgres:postgres@localhost:5432/praktikum?sslmode=disable", "DB address")
+	flag.StringVar(&config.Database.Address, "d", "", "DB address")
 	flag.Parse()
 }
