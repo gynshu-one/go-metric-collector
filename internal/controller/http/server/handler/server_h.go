@@ -147,6 +147,7 @@ func (h *handler) UpdateMetric(ctx *gin.Context) {
 		handleCustomError(ctx, err)
 		return
 	}
+	h.storage.SetFltPrc(input.ID, metricValue)
 	output := h.storage.Set(&input)
 	if output == nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
