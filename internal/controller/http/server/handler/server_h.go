@@ -52,7 +52,7 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
 		return
 	}
-	fmt.Printf("\nRequest: %s", input.String())
+	//fmt.Printf("\nRequest: %s", input.String())
 	err = getPreCheck(&input)
 	if err != nil {
 		handleCustomError(ctx, err)
@@ -64,7 +64,7 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 		return
 	}
 	output.CalculateHash(config.GetConfig().Key)
-	fmt.Printf("\nResponse: %s", output.String())
+	//fmt.Printf("\nResponse: %s", output.String())
 	ctx.JSON(http.StatusOK, output)
 }
 func (h *handler) Value(ctx *gin.Context) {
@@ -162,19 +162,14 @@ func (h *handler) UpdateMetric(ctx *gin.Context) {
 
 func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 	var input []*entity.Metrics
+	fmt.Println(ctx.Request.Body)
 	err := json.NewDecoder(ctx.Request.Body).Decode(&input)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.InvalidMetric})
 		return
 	}
-	if len(input) == 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.EmptyMetric})
-		return
-	}
-	fmt.Println("\n\nReceived output:")
 	var inputMapper = make(map[string]*entity.Metrics)
-	for i, _ := range input {
-		//fmt.Println(metric)
+	for i := range input {
 		err = setPreCheck(input[i])
 		if err != nil {
 			log.Println(err.Error())
@@ -191,9 +186,7 @@ func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 		h.storage.Dump()
 	}
 	var output []entity.Metrics
-	fmt.Println("\n\nSending output:")
-	for i, _ := range inputMapper {
-		//fmt.Println(metric)
+	for i := range inputMapper {
 		inputMapper[i].CalculateHash(config.GetConfig().Key)
 		output = append(output, *inputMapper[i])
 	}
