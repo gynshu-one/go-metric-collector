@@ -65,5 +65,6 @@ func (M *Metrics) CalculateHash(key string) string {
 		return ""
 	}
 	h.Write([]byte(message))
-	return hex.EncodeToString(h.Sum(nil))
+	M.Hash = hex.EncodeToString(h.Sum(nil))
+	return M.Hash
 }

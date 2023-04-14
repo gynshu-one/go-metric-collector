@@ -114,5 +114,31 @@ func makeReport(m *entity.Metrics) {
 		Post(config.GetConfig().Server.Address + "/update/")
 
 	if err != nil {
-		//fmt.Printf("Error: %v", err)
-		ret
+		return
+	}
+	defer resp.RawBody().Close()
+}
+
+func (h *handler) bulkReport() error {
+	m := h.memory.GetAll()
+	if len(m) == 0 {
+		return nil
+	}
+	var err error
+	jsonData, err := json.Marshal(&m)
+	if err != nil {
+		log.Fatal(err)
+	}
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(jsonData).
+		Post(config.GetConfig().Server.Address + "/updates/")
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+		return err
+	}
+	if resp.StatusCode() != 200 {
+		return fmt.Errorf("response: %v", resp)
+	}
+	return nil
+}

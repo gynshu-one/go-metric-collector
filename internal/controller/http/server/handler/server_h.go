@@ -44,176 +44,160 @@ func (h *handler) Live(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "ServerStorage is live"})
 }
 func (h *handler) ValueJSON(ctx *gin.Context) {
-	var m entity.Metrics
+	var input entity.Metrics
 	body := ctx.Request.Body
 	defer body.Close()
-	err := json.NewDecoder(body).Decode(&m)
+	err := json.NewDecoder(body).Decode(&input)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
 		return
 	}
-	fmt.Printf("\nRequest: %s", m.String())
-	err = getPreCheck(&m)
+	fmt.Printf("\nRequest: %s", input.String())
+	err = getPreCheck(&input)
 	if err != nil {
 		handleCustomError(ctx, err)
 		return
 	}
-	val := h.storage.Get(&m)
-	if val == nil {
+	output := h.storage.Get(&input)
+	if output == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.MetricNotFound})
 		return
 	}
-	v := *val
-	if config.GetConfig().Key != "" {
-		v.Hash = v.CalculateHash(config.GetConfig().Key)
-	}
-	fmt.Printf("\nResponse: %s", v.String())
-	ctx.JSON(http.StatusOK, v)
+	output.CalculateHash(config.GetConfig().Key)
+	fmt.Printf("\nResponse: %s", output.String())
+	ctx.JSON(http.StatusOK, output)
 }
 func (h *handler) Value(ctx *gin.Context) {
-	m := entity.Metrics{
+	input := entity.Metrics{
 		ID:    ctx.Param("metric_name"),
 		MType: ctx.Param("metric_type"),
 	}
-	err := getPreCheck(&m)
+	err := getPreCheck(&input)
 	if err != nil {
 		handleCustomError(ctx, err)
 		return
 	}
-	val := h.storage.Get(&m)
-	if val == nil {
+	output := h.storage.Get(&input)
+	if output == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.MetricNotFound})
 		return
 	}
-	if val.Value != nil {
+	if output.Value != nil {
 		ctx.String(http.StatusOK, "%s",
 			strconv.FormatFloat(
-				*val.Value, 'f',
-				h.storage.GetFltPrc(m.ID),
+				*output.Value, 'f',
+				h.storage.GetFltPrc(input.ID),
 				64))
 		return
-	} else if val.Delta != nil {
-		ctx.String(http.StatusOK, "%d", *val.Delta)
+	} else if output.Delta != nil {
+		ctx.String(http.StatusOK, "%d", *output.Delta)
 		return
 	}
 
 }
 func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
-	var m entity.Metrics
-	err := json.NewDecoder(ctx.Request.Body).Decode(&m)
+	var input entity.Metrics
+	err := json.NewDecoder(ctx.Request.Body).Decode(&input)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.InvalidMetric})
 		return
 	}
-	err = setPreCheck(&m)
+	err = setPreCheck(&input)
 	if err != nil {
 		handleCustomError(ctx, err)
 		return
 	}
-	val := h.storage.Set(&m)
-	if val == nil {
+	output := h.storage.Set(&input)
+	if output == nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
 		return
 	}
 	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
 		h.storage.Dump()
 	}
-	v := *val
-	if config.GetConfig().Key != "" {
-		v.Hash = v.CalculateHash(config.GetConfig().Key)
-	}
-	ctx.JSON(http.StatusOK, v)
+	output.CalculateHash(config.GetConfig().Key)
+	ctx.JSON(http.StatusOK, output)
 }
 func (h *handler) UpdateMetric(ctx *gin.Context) {
-	m := entity.Metrics{
+	input := entity.Metrics{
 		ID:    ctx.Param("metric_name"),
 		MType: ctx.Param("metric_type"),
 	}
 	metricValue := ctx.Param("metric_value")
-	switch m.MType {
+	switch input.MType {
 	case entity.GaugeType:
 		val, err_ := strconv.ParseFloat(metricValue, 64)
 		if err_ != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric value, should be a number"})
 			return
 		}
-		m.Value = &val
+		input.Value = &val
 	case entity.CounterType:
 		val, err_ := strconv.ParseInt(metricValue, 10, 64)
 		if err_ != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric value, should be a number"})
 			return
 		}
-		m.Delta = &val
+		input.Delta = &val
 	default:
-		m.Delta = nil
+		input.Delta = nil
 	}
-	err := setPreCheck(&m)
+	err := setPreCheck(&input)
 	if err != nil {
 		handleCustomError(ctx, err)
 		return
 	}
-	val := h.storage.Set(&m)
-	if val == nil {
+	output := h.storage.Set(&input)
+	if output == nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
 		return
 	}
-	h.storage.SetFltPrc(m.ID, metricValue)
+	h.storage.SetFltPrc(input.ID, metricValue)
 	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
 		h.storage.Dump()
 	}
-	v := *val
-	if config.GetConfig().Key != "" {
-		v.Hash = v.CalculateHash(config.GetConfig().Key)
-	}
-	ctx.JSON(http.StatusOK, v)
+	output.CalculateHash(config.GetConfig().Key)
+	ctx.JSON(http.StatusOK, output)
 }
 
 func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
-	var m []*entity.Metrics
-	err := json.NewDecoder(ctx.Request.Body).Decode(&m)
+	var input []*entity.Metrics
+	err := json.NewDecoder(ctx.Request.Body).Decode(&input)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.InvalidMetric})
 		return
 	}
-	if len(m) == 0 {
+	if len(input) == 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.EmptyMetric})
 		return
 	}
-	fmt.Println("\n\nReceived metrics:")
-	var mapMetrics = make(map[string]*entity.Metrics)
-	for i, _ := range m {
+	fmt.Println("\n\nReceived output:")
+	var inputMapper = make(map[string]*entity.Metrics)
+	for i, _ := range input {
 		//fmt.Println(metric)
-		err = setPreCheck(m[i])
+		err = setPreCheck(input[i])
 		if err != nil {
-			//handleCustomError(ctx, err)
-			//return
 			log.Println(err.Error())
 			continue
 		}
-		val := h.storage.Set(m[i])
+		val := h.storage.Set(input[i])
 		if val == nil {
-			//ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
-			//return
 			log.Println(entity.NameTypeMismatch)
 			continue
 		}
-		mapMetrics[m[i].ID] = val
+		inputMapper[input[i].ID] = val
 	}
 	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
 		h.storage.Dump()
 	}
-	var metrics []entity.Metrics
-	fmt.Println("\n\nSending metrics:")
-	for i, _ := range mapMetrics {
+	var output []entity.Metrics
+	fmt.Println("\n\nSending output:")
+	for i, _ := range inputMapper {
 		//fmt.Println(metric)
-		v := *mapMetrics[i]
-		if config.GetConfig().Key != "" {
-			v.Hash = v.CalculateHash(config.GetConfig().Key)
-		}
-		metrics = append(metrics, v)
+		inputMapper[i].CalculateHash(config.GetConfig().Key)
+		output = append(output, *inputMapper[i])
 	}
-	ctx.JSON(http.StatusOK, metrics)
+	ctx.JSON(http.StatusOK, output)
 }
 
 func (h *handler) HTMLAllMetrics(ctx *gin.Context) {

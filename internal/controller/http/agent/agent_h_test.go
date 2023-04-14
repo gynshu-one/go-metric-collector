@@ -64,4 +64,7 @@ func TestAgent(t *testing.T) {
 			randomValueMetric := newAgent.memory.Get(rv)
 			assert.NotNil(t, randomValueMetric)
 			assert.Equal(t, entity.GaugeType, randomValueMetric.MType)
-			a
+			assert.NotNil(t, randomValueMetric.Value)
+		})
+	}
+}
