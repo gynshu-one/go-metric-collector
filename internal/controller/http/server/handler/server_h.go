@@ -191,7 +191,7 @@ func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 		inputMapper[i].CalculateHash(config.GetConfig().Key)
 		output = append(output, *inputMapper[i])
 	}
-	ctx.JSON(http.StatusOK, output)
+	ctx.Data(http.StatusOK, "application/json; charset=utf-8", []byte("{}"))
 }
 
 func (h *handler) HTMLAllMetrics(ctx *gin.Context) {
