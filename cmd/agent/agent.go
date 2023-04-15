@@ -14,5 +14,4 @@ var (
 func main() {
 	agent = ag.NewAgent(service.NewMemService(&sync.Map{}))
 	agent.Start()
-
 }

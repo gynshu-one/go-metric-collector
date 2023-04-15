@@ -42,7 +42,7 @@ func (S *serverUseCase) SetFltPrc(name, p string) {
 		S.fltPrecision.Store(name, 0)
 		return
 	}
-	S.fltPrecision.Store(name, precision[0])
+	S.fltPrecision.Store(name, len(precision[1]))
 }
 func (S *serverUseCase) GetFltPrc(name string) int {
 	if v, ok := S.fltPrecision.Load(name); ok {
