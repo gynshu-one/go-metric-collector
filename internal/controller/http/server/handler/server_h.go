@@ -186,11 +186,11 @@ func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
 		h.storage.Dump()
 	}
-	var output []entity.Metrics
-	for i := range inputMapper {
-		inputMapper[i].CalculateHash(config.GetConfig().Key)
-		output = append(output, *inputMapper[i])
-	}
+	//var output []entity.Metrics
+	//for i := range inputMapper {
+	//	inputMapper[i].CalculateHash(config.GetConfig().Key)
+	//	output = append(output, *inputMapper[i])
+	//}
 	ctx.Data(http.StatusOK, "application/json; charset=utf-8", []byte("{}"))
 }
 
