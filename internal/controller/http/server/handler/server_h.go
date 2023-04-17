@@ -169,7 +169,7 @@ func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.ErrInvalidMetric})
 		return
 	}
-	//var inputMapper = make(map[string]*entity.Metrics)
+	var inputMapper = make(map[string]*entity.Metrics)
 	for i := range input {
 		err = setPreCheck(input[i])
 		if err != nil {
@@ -181,20 +181,18 @@ func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 			log.Error().Err(err).Interface("Some of the input metrics are invalid %s", entity.ErrUnableToStore)
 			continue
 		}
+		inputMapper[input[i].ID] = val
 	}
 	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
 		h.storage.Dump()
 	}
 
-	// It would be reasonable to return the updated metrics, but looks like it's not required
-
-	//var output []entity.Metrics
-	//for i := range inputMapper {
-	//	inputMapper[i].CalculateHash(config.GetConfig().Key)
-	//	output = append(output, *inputMapper[i])
-	//}
-
-	ctx.Data(http.StatusOK, "application/json; charset=utf-8", []byte("{}"))
+	var output []entity.Metrics
+	for i := range inputMapper {
+		inputMapper[i].CalculateHash(config.GetConfig().Key)
+		output = append(output, *inputMapper[i])
+	}
+	ctx.JSON(http.StatusOK, output)
 }
 
 func (h *handler) HTMLAllMetrics(ctx *gin.Context) {
