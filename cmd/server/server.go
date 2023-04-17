@@ -12,7 +12,7 @@ import (
 	"github.com/gynshu-one/go-metric-collector/internal/controller/http/server/routers"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	usecase "github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
-	"github.com/gynshu-one/go-metric-collector/pkg/client/postgres"
+	"github.com/gynshu-one/go-metric-collector/repos/postgres"
 	"github.com/rs/zerolog/log"
 	"net/http"
 	"os"

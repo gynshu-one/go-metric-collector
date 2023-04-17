@@ -8,7 +8,7 @@ import (
 	config "github.com/gynshu-one/go-metric-collector/internal/config/server"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
-	"github.com/gynshu-one/go-metric-collector/pkg/client/postgres"
+	"github.com/gynshu-one/go-metric-collector/repos/postgres"
 	"github.com/rs/zerolog/log"
 	"net/http"
 	"sort"
