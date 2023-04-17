@@ -7,7 +7,7 @@ import (
 	config "github.com/gynshu-one/go-metric-collector/internal/config/server"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
-	"log"
+	"github.com/rs/zerolog/log"
 	"os"
 	"strings"
 	"sync"
@@ -23,7 +23,8 @@ type ServerStorage interface {
 }
 type serverUseCase struct {
 	service.MemStorage
-	dbAdapter    adapters.DBAdapter
+	dbAdapter adapters.DBAdapter
+	// fltPrecision is for autotests iter3
 	fltPrecision sync.Map
 }
 
@@ -33,6 +34,7 @@ func NewServerUseCase(MemStorage service.MemStorage, dbAdapter adapters.DBAdapte
 		dbAdapter:    dbAdapter,
 		fltPrecision: sync.Map{},
 	}
+	log.Info().Msg("Server storage initialized")
 	s.filesDaemon()
 	return s
 }
@@ -81,52 +83,57 @@ func (S *serverUseCase) Restore() {
 	}
 }
 func (S *serverUseCase) fromDB() {
+	log.Info().Msg("Restoring previous state from DB...")
 	metrics, err := S.dbAdapter.GetMetrics()
 	if err != nil {
+		log.Error().Err(err).Msg("Error restoring from DB")
 		return
 	}
 	for _, m := range metrics {
 		S.Set(m)
 	}
+	log.Info().Msg("Successfully restored from DB")
 }
 
 func (S *serverUseCase) toDB() {
 	allMetrics := S.GetAll()
 	err := S.dbAdapter.StoreMetrics(allMetrics)
 	if err != nil {
-		log.Fatal(err)
+		log.Error().Err(err).Msg("Error storing to DB")
+		return
 	}
+	log.Info().Msg("Successfully stored to DB")
 }
 
 func (S *serverUseCase) fromFile() {
+	log.Info().Msg("Restoring previous state from file...")
 	file, err := os.OpenFile(config.GetConfig().Server.StoreFile, os.O_RDONLY, 0666)
 	if err != nil {
-		log.Printf("Nothing to resore from storage file: %v", err)
+		log.Warn().Err(err).Msg("Error opening file to restore")
 		return
 	}
 	defer file.Close()
 	var metrics []*entity.Metrics
 	err = json.NewDecoder(file).Decode(&metrics)
 	if err != nil {
-		log.Printf("Error decoding json may be file is empty: %v", err)
+		log.Error().Err(err).Msg("Error decoding json may be file is empty:")
 		return
 	}
 	for _, m := range metrics {
 		S.Set(m)
 	}
+	log.Info().Msg("Successfully restored from file")
 	metrics = nil
 }
 
 func (S *serverUseCase) toFile() {
 	allMetrics := S.GetAll()
-	// save to jsonData file
 	jsonData, err := json.Marshal(allMetrics)
 	if err != nil {
-		log.Fatal(err)
+		log.Error().Err(err).Msg("Error marshaling metrics to json")
 	}
-	// save to file
 	err = os.WriteFile(config.GetConfig().Server.StoreFile, jsonData, 0644)
 	if err != nil {
-		log.Fatal(err)
+		log.Error().Err(err).Msg("Error writing to file")
 	}
 }

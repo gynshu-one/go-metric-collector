@@ -9,7 +9,7 @@ import (
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
 	"github.com/gynshu-one/go-metric-collector/pkg/client/postgres"
-	"log"
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -52,7 +52,7 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
 		return
 	}
-	//fmt.Printf("\nRequest: %s", input.String())
+	log.Debug().Interface("Request ValueJson Input: %s", input)
 	err = getPreCheck(&input)
 	if err != nil {
 		handleCustomError(ctx, err)
@@ -60,11 +60,11 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 	}
 	output := h.storage.Get(&input)
 	if output == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.MetricNotFound})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.ErrMetricNotFound})
 		return
 	}
 	output.CalculateHash(config.GetConfig().Key)
-	//fmt.Printf("\nResponse: %s", output.String())
+	log.Debug().Interface("Request ValueJson Output: %s", output)
 	ctx.JSON(http.StatusOK, output)
 }
 func (h *handler) Value(ctx *gin.Context) {
@@ -79,7 +79,7 @@ func (h *handler) Value(ctx *gin.Context) {
 	}
 	output := h.storage.Get(&input)
 	if output == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.MetricNotFound})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.ErrMetricNotFound})
 		return
 	}
 	if output.Value != nil {
@@ -99,7 +99,7 @@ func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 	var input entity.Metrics
 	err := json.NewDecoder(ctx.Request.Body).Decode(&input)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.InvalidMetric})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.ErrInvalidMetric})
 		return
 	}
 	err = setPreCheck(&input)
@@ -109,7 +109,7 @@ func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 	}
 	output := h.storage.Set(&input)
 	if output == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.ErrNameTypeMismatch})
 		return
 	}
 	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
@@ -150,7 +150,7 @@ func (h *handler) UpdateMetric(ctx *gin.Context) {
 	h.storage.SetFltPrc(input.ID, metricValue)
 	output := h.storage.Set(&input)
 	if output == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.ErrNameTypeMismatch})
 		return
 	}
 	h.storage.SetFltPrc(input.ID, metricValue)
@@ -166,31 +166,34 @@ func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 	fmt.Println(ctx.Request.Body)
 	err := json.NewDecoder(ctx.Request.Body).Decode(&input)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.InvalidMetric})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.ErrInvalidMetric})
 		return
 	}
 	//var inputMapper = make(map[string]*entity.Metrics)
 	for i := range input {
 		err = setPreCheck(input[i])
 		if err != nil {
-			log.Println(err.Error())
+			log.Error().Err(err).Msg("Some of the input metrics are invalid")
 			continue
 		}
 		val := h.storage.Set(input[i])
 		if val == nil {
-			log.Println(entity.NameTypeMismatch)
+			log.Error().Err(err).Interface("Some of the input metrics are invalid %s", entity.ErrUnableToStore)
 			continue
 		}
-		//inputMapper[input[i].ID] = val
 	}
 	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
 		h.storage.Dump()
 	}
+
+	// It would be reasonable to return the updated metrics, but looks like it's not required
+
 	//var output []entity.Metrics
 	//for i := range inputMapper {
 	//	inputMapper[i].CalculateHash(config.GetConfig().Key)
 	//	output = append(output, *inputMapper[i])
 	//}
+
 	ctx.Data(http.StatusOK, "application/json; charset=utf-8", []byte("{}"))
 }
 

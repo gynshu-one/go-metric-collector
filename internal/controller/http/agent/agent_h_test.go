@@ -43,7 +43,7 @@ func TestAgent(t *testing.T) {
 				newAgent.Start()
 			}()
 
-			time.Sleep(3 * time.Second)
+			time.Sleep(12 * time.Second)
 
 			pq := &entity.Metrics{
 				ID:    "PollCount",

@@ -2,13 +2,12 @@ package handler
 
 import (
 	"crypto/hmac"
-	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	config "github.com/gynshu-one/go-metric-collector/internal/config/server"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
-	"log"
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"strings"
 )
@@ -16,15 +15,15 @@ import (
 func getPreCheck(m *entity.Metrics) error {
 	m.MType = strings.ToLower(m.MType)
 	if m.ID == "" {
-		return errors.New(entity.MetricNameNotProvided)
+		return entity.ErrMetricNameNotProvided
 	}
 	if m.MType == "" {
-		return errors.New(entity.MetricTypeNotProvided)
+		return entity.ErrMetricTypeNotProvided
 	}
 	switch m.MType {
 	case entity.GaugeType, entity.CounterType:
 	default:
-		return errors.New(entity.InvalidType)
+		return entity.ErrInvalidType
 	}
 	return nil
 }
@@ -33,35 +32,35 @@ func setPreCheck(m *entity.Metrics) error {
 	switch m.MType {
 	case entity.GaugeType, entity.CounterType:
 		if m.MType == entity.GaugeType && m.Value == nil {
-			return errors.New(entity.TypeValueMismatch)
+			return entity.ErrTypeValueMismatch
 		} else if m.MType == entity.CounterType && m.Delta == nil {
-			return errors.New(entity.TypeValueMismatch)
+			return entity.ErrTypeValueMismatch
 		}
 	default:
-		return errors.New(entity.InvalidType)
+		return entity.ErrInvalidType
 	}
 	if m.ID == "" {
-		return errors.New(entity.MetricNameNotProvided)
+		return entity.ErrMetricNameNotProvided
 	}
 	if config.GetConfig().Key != "" {
 		inputHash := m.Hash
 		m.CalculateHash(config.GetConfig().Key)
 		if !hmac.Equal([]byte(inputHash), []byte(m.Hash)) {
-			log.Println("Hash mismatch")
-			return errors.New(entity.InvalidHash)
+			log.Debug().Msgf("Hash mismatch: %s != %s on %s", inputHash, m.Hash, m.String())
+			return entity.ErrInvalidHash
 		}
 	}
 	return nil
 }
 func handleCustomError(ctx *gin.Context, err error) {
-	switch err.Error() {
-	case entity.InvalidType:
+	switch err {
+	case entity.ErrInvalidType:
 		ctx.JSON(http.StatusNotImplemented, gin.H{"error": err.Error()})
 		return
-	case entity.TypeValueMismatch, entity.InvalidHash:
+	case entity.ErrTypeValueMismatch, entity.ErrInvalidHash:
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
-	case entity.DBConnError:
+	case entity.ErrDBConnError:
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	default:

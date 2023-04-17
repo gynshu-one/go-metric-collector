@@ -2,8 +2,9 @@ package agent
 
 import (
 	"flag"
-	"github.com/fatih/color"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
+	"os"
 	"sync"
 	"time"
 )
@@ -28,7 +29,7 @@ func GetConfig() *config {
 		// Order matters if we want to prioritize ENV over flags
 		instance.readAgentFlags()
 		instance.readOs()
-		color.Cyan("Configs: %+v", instance)
+		log.Debug().Interface("config", instance).Msg("Agent started with configs")
 	})
 	return instance
 }
@@ -57,10 +58,16 @@ func (config *config) readOs() {
 // readAgentFlags separate function required bec of similar variable names required for agent and server
 func (config *config) readAgentFlags() {
 	// read flags
-	flag.CommandLine.Init("go-metric-collector", flag.ContinueOnError)
-	flag.StringVar(&config.Server.Address, "a", "localhost:8080", "server address")
-	flag.StringVar(&config.Key, "k", "", "hash key")
-	flag.DurationVar(&config.Agent.PollInterval, "p", 1*time.Second, "poll interval")
-	flag.DurationVar(&config.Agent.ReportInterval, "r", 2*time.Second, "report interval")
-	flag.Parse()
+	appFlags := flag.NewFlagSet("go-metric-collector", flag.ContinueOnError)
+
+	appFlags.StringVar(&config.Server.Address, "a", "localhost:8080", "server address")
+	appFlags.StringVar(&config.Key, "k", "", "hash key")
+	appFlags.DurationVar(&config.Agent.PollInterval, "p", 2*time.Second, "poll interval")
+	appFlags.DurationVar(&config.Agent.ReportInterval, "r", 10*time.Second, "report interval")
+
+	// Parse the flags using the new flag set
+	err := appFlags.Parse(os.Args[1:])
+	if err != nil {
+		log.Debug().Err(err).Msg("Failed to parse flags")
+	}
 }

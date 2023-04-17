@@ -2,22 +2,26 @@ package agent
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"github.com/go-resty/resty/v2"
 	config "github.com/gynshu-one/go-metric-collector/internal/config/agent"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
-	"log"
+	"github.com/mackerelio/go-osstat/cpu"
+	"github.com/rs/zerolog/log"
+	"github.com/shirou/gopsutil/v3/mem"
 	"math/rand"
 	"reflect"
 	"runtime"
+	"sync"
 	"time"
 )
 
 var client = resty.New()
 
 type handler struct {
+	mu     sync.Mutex
 	memory service.MemStorage
 }
 
@@ -34,17 +38,41 @@ func NewAgent(storage service.MemStorage) *handler {
 // Start polls runtime Metrics and reports them to the server by calling Report()
 func (h *handler) Start() {
 	pollCount := 0
+	// Common metrics collection
 	go func() {
 		for {
+			h.mu.Lock()
 			pollCount++
+			h.mu.Unlock()
+			h.readRuntime()
+			// Sleep for poll interval
+			time.Sleep(config.GetConfig().Agent.PollInterval)
+		}
+	}()
+	// Additional metrics collection
+	go func() {
+		for {
+			h.mu.Lock()
+			pollCount++
+			h.mu.Unlock()
 			h.readRuntime()
 			// Sleep for poll interval
 			time.Sleep(config.GetConfig().Agent.PollInterval)
 		}
 	}()
 	for {
+		bef, _ := cpu.Get()
 		time.Sleep(config.GetConfig().Agent.ReportInterval)
+		aft, _ := cpu.Get()
+		total := float64(aft.Total-bef.Total) * 100
+		h.memory.Set(&entity.Metrics{
+			ID:    "CPUutilization1",
+			MType: entity.GaugeType,
+			Value: tools.Float64Ptr(float64(aft.System-bef.System) / total),
+		})
+		h.readAdditionalMetrics()
 		go func() {
+			h.mu.Lock()
 			h.memory.Set(&entity.Metrics{
 				ID:    "PollCount",
 				MType: entity.CounterType,
@@ -55,11 +83,25 @@ func (h *handler) Start() {
 				MType: entity.GaugeType,
 				Value: tools.Float64Ptr(rand.Float64()),
 			})
-			h.report()
 			pollCount = 0
+			h.mu.Unlock()
+			h.report()
 		}()
 	}
 
+}
+func (h *handler) readAdditionalMetrics() {
+	v, _ := mem.VirtualMemory()
+	h.memory.Set(&entity.Metrics{
+		ID:    "TotalMemory",
+		MType: entity.GaugeType,
+		Value: tools.Float64Ptr(float64(v.Total)),
+	})
+	h.memory.Set(&entity.Metrics{
+		ID:    "FreeMemory",
+		MType: entity.GaugeType,
+		Value: tools.Float64Ptr(float64(v.Free)),
+	})
 }
 func (h *handler) readRuntime() {
 	// read runtime metrics
@@ -86,6 +128,7 @@ func (h *handler) readRuntime() {
 			h.memory.Set(&m)
 		}
 	}
+	log.Info().Msg("Runtime metrics read successfully")
 }
 func (h *handler) report() {
 	if config.GetConfig().Key != "" {
@@ -93,10 +136,12 @@ func (h *handler) report() {
 			m.Hash = m.CalculateHash(config.GetConfig().Key)
 		})
 	}
+	log.Debug().Msg("Trying to report metrics by bulk")
 	err := h.bulkReport()
-	if err == nil {
+	if !errors.Is(err, entity.ErrBulkReport) {
 		return
 	}
+	log.Debug().Msg("Bulk report unsuccessful, reporting metrics one by one")
 	h.memory.ApplyToAll(makeReport)
 }
 
@@ -106,14 +151,14 @@ func makeReport(m *entity.Metrics) {
 	var err error
 	jsonData, err := json.Marshal(&m)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Error marshalling metrics")
 	}
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(jsonData).
 		Post(config.GetConfig().Server.Address + "/update/")
-
 	if err != nil {
+		log.Error().Err(err).Msg("Error reporting metrics one by one")
 		return
 	}
 	defer resp.RawBody().Close()
@@ -127,18 +172,20 @@ func (h *handler) bulkReport() error {
 	var err error
 	jsonData, err := json.Marshal(&m)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Error marshalling metrics")
 	}
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(jsonData).
 		Post(config.GetConfig().Server.Address + "/updates/")
 	if err != nil {
-		fmt.Printf("Error: %v", err)
+		if resp.StatusCode() == 404 {
+			log.Debug().Msgf("Path is unavailable: %v", resp)
+			return entity.ErrBulkReport
+		}
+		log.Error().Err(err).Msg("Error reporting metrics by bulk")
 		return err
 	}
-	if resp.StatusCode() != 200 {
-		return fmt.Errorf("response: %v", resp)
-	}
+
 	return nil
 }

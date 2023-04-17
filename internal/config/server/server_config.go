@@ -2,9 +2,8 @@ package server
 
 import (
 	"flag"
-	"github.com/fatih/color"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
-	"log"
 	"os"
 	"path"
 	"sync"
@@ -35,7 +34,7 @@ func GetConfig() *config {
 		instance.readOs()
 		// Then init files
 		instance.initFiles()
-		color.Cyan("Configs: %+v", instance)
+		log.Debug().Interface("config", instance).Msg("Server started with configs")
 	})
 	return instance
 }
@@ -76,7 +75,7 @@ func (config *config) initFiles() {
 		// create dir
 		err = os.MkdirAll(dr, os.ModePerm)
 		if err != nil {
-			log.Fatal("error creating dir: ", err)
+			log.Fatal().Err(err).Msg("Failed to create dir for server storage")
 		}
 	}
 }
@@ -84,12 +83,16 @@ func (config *config) initFiles() {
 // readServerFlags reads config from flags Run this first
 func (config *config) readServerFlags() {
 	// read flags
-	flag.CommandLine.Init("go-metric-collector", flag.ContinueOnError)
-	flag.StringVar(&config.Server.Address, "a", "localhost:8080", "server address")
-	flag.DurationVar(&config.Server.StoreInterval, "i", 300*time.Second, "store interval")
-	flag.StringVar(&config.Server.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")
-	flag.StringVar(&config.Key, "k", "", "hash key")
-	flag.BoolVar(&config.Server.Restore, "r", true, "restore")
-	flag.StringVar(&config.Database.Address, "d", "", "DB address")
-	flag.Parse()
+	appFlags := flag.NewFlagSet("go-metric-collector", flag.ContinueOnError)
+
+	appFlags.StringVar(&config.Server.Address, "a", "localhost:8080", "server address")
+	appFlags.DurationVar(&config.Server.StoreInterval, "i", 300*time.Second, "store interval")
+	appFlags.StringVar(&config.Server.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")
+	appFlags.StringVar(&config.Key, "k", "", "hash key")
+	appFlags.BoolVar(&config.Server.Restore, "r", true, "restore")
+	appFlags.StringVar(&config.Database.Address, "d", "", "DB address")
+	err := appFlags.Parse(os.Args[1:])
+	if err != nil {
+		log.Debug().Err(err).Msg("Failed to parse flags")
+	}
 }
