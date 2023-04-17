@@ -3,7 +3,7 @@ package adapters
 import (
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/jmoiron/sqlx"
-	"log"
+	"github.com/rs/zerolog/log"
 )
 
 type DBAdapter interface {
@@ -20,7 +20,7 @@ func NewAdapter(conn *sqlx.DB) *dbAdapter {
 	adap := &dbAdapter{conn: conn}
 	err := adap.commitScheme()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Unable to commit initial scheme")
 	}
 	return adap
 }
@@ -41,13 +41,6 @@ VALUES ($1, $2, $3, $4, $5)
 const selectAll = `
 SELECT * FROM metrics
 `
-
-// const update = `
-// UPDATE metrics SET type = $2, delta = $3, value = $4, hash = $5 WHERE id = $1
-// `
-// const getByID = `
-// SELECT * FROM metrics WHERE id = $1
-// `
 const insertOrUpdate = `
 INSERT INTO metrics ( id, type, delta, value, hash)
 VALUES ($1, $2, $3, $4, $5)
@@ -62,6 +55,7 @@ func (a *dbAdapter) StoreMetrics(metrics []*entity.Metrics) error {
 	}
 	err := tx.Commit()
 	if err != nil {
+		log.Debug().Err(err).Msg("Unable to commit transaction StoreMetrics")
 		return err
 	}
 	return nil
@@ -69,6 +63,7 @@ func (a *dbAdapter) StoreMetrics(metrics []*entity.Metrics) error {
 func (a *dbAdapter) GetMetrics() ([]*entity.Metrics, error) {
 	rows, err := a.conn.Queryx(selectAll)
 	if err != nil || rows.Err() != nil {
+		log.Debug().Err(err).Msg("Unable to get metrics")
 		return nil, err
 	}
 	defer rows.Close()
@@ -77,6 +72,7 @@ func (a *dbAdapter) GetMetrics() ([]*entity.Metrics, error) {
 		var m entity.Metrics
 		err = rows.StructScan(&m)
 		if err != nil {
+			log.Debug().Err(err).Msg("Unable to scan and unmarshal metrics from db")
 			return nil, err
 		}
 		metrics = append(metrics, &m)
@@ -94,19 +90,3 @@ func (a *dbAdapter) commitScheme() error {
 	}
 	return nil
 }
-
-//func (a *dbAdapter) getMetricsByID(id string) (*entity.Metrics, error) {
-//	rows, err := a.conn.Queryx(getByID, id)
-//	if err != nil || rows.Err() != nil {
-//		return nil, err
-//	}
-//	defer rows.Close()
-//	var m entity.Metrics
-//	for rows.Next() {
-//		err = rows.StructScan(&m)
-//		if err != nil {
-//			return nil, err
-//		}
-//	}
-//	return &m, nil
-//}

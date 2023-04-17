@@ -2,7 +2,7 @@ package agent
 
 import (
 	"flag"
-	"github.com/fatih/color"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"sync"
 	"time"
@@ -28,7 +28,7 @@ func GetConfig() *config {
 		// Order matters if we want to prioritize ENV over flags
 		instance.readAgentFlags()
 		instance.readOs()
-		color.Cyan("Configs: %+v", instance)
+		log.Debug().Interface("config", instance).Msg("Agent started with configs")
 	})
 	return instance
 }

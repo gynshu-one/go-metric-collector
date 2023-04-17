@@ -2,13 +2,12 @@ package handler
 
 import (
 	"crypto/hmac"
-	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	config "github.com/gynshu-one/go-metric-collector/internal/config/server"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
-	"log"
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"strings"
 )
@@ -16,15 +15,15 @@ import (
 func getPreCheck(m *entity.Metrics) error {
 	m.MType = strings.ToLower(m.MType)
 	if m.ID == "" {
-		return errors.New(entity.MetricNameNotProvided)
+		return entity.MetricNameNotProvided
 	}
 	if m.MType == "" {
-		return errors.New(entity.MetricTypeNotProvided)
+		return entity.MetricTypeNotProvided
 	}
 	switch m.MType {
 	case entity.GaugeType, entity.CounterType:
 	default:
-		return errors.New(entity.InvalidType)
+		return entity.InvalidType
 	}
 	return nil
 }
@@ -33,28 +32,28 @@ func setPreCheck(m *entity.Metrics) error {
 	switch m.MType {
 	case entity.GaugeType, entity.CounterType:
 		if m.MType == entity.GaugeType && m.Value == nil {
-			return errors.New(entity.TypeValueMismatch)
+			return entity.TypeValueMismatch
 		} else if m.MType == entity.CounterType && m.Delta == nil {
-			return errors.New(entity.TypeValueMismatch)
+			return entity.TypeValueMismatch
 		}
 	default:
-		return errors.New(entity.InvalidType)
+		return entity.InvalidType
 	}
 	if m.ID == "" {
-		return errors.New(entity.MetricNameNotProvided)
+		return entity.MetricNameNotProvided
 	}
 	if config.GetConfig().Key != "" {
 		inputHash := m.Hash
 		m.CalculateHash(config.GetConfig().Key)
 		if !hmac.Equal([]byte(inputHash), []byte(m.Hash)) {
-			log.Println("Hash mismatch")
-			return errors.New(entity.InvalidHash)
+			log.Debug().Msgf("Hash mismatch: %s != %s on %s", inputHash, m.Hash, m.String())
+			return entity.InvalidHash
 		}
 	}
 	return nil
 }
 func handleCustomError(ctx *gin.Context, err error) {
-	switch err.Error() {
+	switch err {
 	case entity.InvalidType:
 		ctx.JSON(http.StatusNotImplemented, gin.H{"error": err.Error()})
 		return

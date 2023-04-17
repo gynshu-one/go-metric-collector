@@ -2,9 +2,8 @@ package server
 
 import (
 	"flag"
-	"github.com/fatih/color"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
-	"log"
 	"os"
 	"path"
 	"sync"
@@ -35,7 +34,7 @@ func GetConfig() *config {
 		instance.readOs()
 		// Then init files
 		instance.initFiles()
-		color.Cyan("Configs: %+v", instance)
+		log.Debug().Interface("config", instance).Msg("Server started with configs")
 	})
 	return instance
 }
@@ -76,7 +75,7 @@ func (config *config) initFiles() {
 		// create dir
 		err = os.MkdirAll(dr, os.ModePerm)
 		if err != nil {
-			log.Fatal("error creating dir: ", err)
+			log.Fatal().Err(err).Msg("Failed to create dir for server storage")
 		}
 	}
 }

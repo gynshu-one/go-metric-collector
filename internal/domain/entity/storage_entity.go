@@ -8,20 +8,8 @@ import (
 )
 
 const (
-	GaugeType             = "gauge"
-	CounterType           = "counter"
-	InvalidType           = "invalid type"
-	TypeValueMismatch     = "type and value mismatch"
-	NameTypeMismatch      = "name and type you have sent mismatch with the one in the storage"
-	MetricTypeNotProvided = "metric type not provided"
-	MetricNameNotProvided = "metric name not provided"
-	MetricNotFound        = "metric not found"
-	InvalidHash           = "invalid hash"
-	HashNotProvided       = "env var KEY is set but hash is missing"
-
-	DBConnError   = "db connection error"
-	InvalidMetric = "invalid metric"
-	EmptyMetric   = "empty metric"
+	GaugeType   = "gauge"
+	CounterType = "counter"
 )
 
 type Metrics struct {

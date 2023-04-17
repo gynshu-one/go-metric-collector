@@ -2,13 +2,13 @@ package agent
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"github.com/go-resty/resty/v2"
 	config "github.com/gynshu-one/go-metric-collector/internal/config/agent"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
-	"log"
+	"github.com/rs/zerolog/log"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -86,6 +86,7 @@ func (h *handler) readRuntime() {
 			h.memory.Set(&m)
 		}
 	}
+	log.Info().Msg("Runtime metrics read successfully")
 }
 func (h *handler) report() {
 	if config.GetConfig().Key != "" {
@@ -93,10 +94,12 @@ func (h *handler) report() {
 			m.Hash = m.CalculateHash(config.GetConfig().Key)
 		})
 	}
+	log.Debug().Msg("Trying to report metrics by bulk")
 	err := h.bulkReport()
-	if err == nil {
+	if !errors.Is(err, entity.BulkReport) {
 		return
 	}
+	log.Debug().Msg("Bulk report unsuccessful, reporting metrics one by one")
 	h.memory.ApplyToAll(makeReport)
 }
 
@@ -106,14 +109,14 @@ func makeReport(m *entity.Metrics) {
 	var err error
 	jsonData, err := json.Marshal(&m)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Error marshalling metrics")
 	}
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(jsonData).
 		Post(config.GetConfig().Server.Address + "/update/")
-
 	if err != nil {
+		log.Error().Err(err).Msg("Error reporting metrics one by one")
 		return
 	}
 	defer resp.RawBody().Close()
@@ -127,18 +130,20 @@ func (h *handler) bulkReport() error {
 	var err error
 	jsonData, err := json.Marshal(&m)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Error marshalling metrics")
 	}
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(jsonData).
 		Post(config.GetConfig().Server.Address + "/updates/")
 	if err != nil {
-		fmt.Printf("Error: %v", err)
+		if resp.StatusCode() == 404 {
+			log.Debug().Msgf("Path is unavailable: %v", resp)
+			return entity.BulkReport
+		}
+		log.Error().Err(err).Msg("Error reporting metrics by bulk")
 		return err
 	}
-	if resp.StatusCode() != 200 {
-		return fmt.Errorf("response: %v", resp)
-	}
+
 	return nil
 }

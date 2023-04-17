@@ -3,7 +3,7 @@ package service
 import (
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
-	"log"
+	"github.com/rs/zerolog/log"
 	"sync"
 )
 
@@ -33,6 +33,8 @@ func (M memService) Get(m *entity.Metrics) *entity.Metrics {
 func (M memService) Set(m *entity.Metrics) *entity.Metrics {
 	found, ok := M.repo.Load(m.ID)
 	if ok {
+		// Maybe we want to check this type of error in the future
+
 		//if found.(*entity.Metrics).MType != m.MType {
 		//	log.Printf("name and type you have sent mismatch with the one in the storage: \n%s\n%s", m.String(), found.(*entity.Metrics).String())
 		//	return nil
@@ -50,7 +52,7 @@ func (M memService) Set(m *entity.Metrics) *entity.Metrics {
 	}
 	found, ok = M.repo.Load(m.ID)
 	if !ok {
-		log.Printf("failed to store metric: %s", m.ID)
+		log.Error().Msgf("Failed to store metric: %s", m.String())
 		return nil
 	}
 	return found.(*entity.Metrics)

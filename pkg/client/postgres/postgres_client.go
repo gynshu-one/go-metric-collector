@@ -6,6 +6,7 @@ import (
 	config "github.com/gynshu-one/go-metric-collector/internal/config/server"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/rs/zerolog/log"
 	"net/url"
 	"strings"
 )
@@ -39,10 +40,9 @@ func (db *dbConn) Connect() error {
 		dbname  = dbURL.Path[1:]
 		mode    = dbURL.Query().Get("sslmode")
 	)
-	// compose connection string
 	composed := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		host, port, user, pass, dbname, mode)
-	fmt.Println("composed=", composed)
+	log.Debug().Msgf("Connecting to database: %s", composed)
 	db.conn, err = sqlx.Open("postgres", composed)
 	if err != nil {
 		return err
@@ -53,6 +53,7 @@ func (db *dbConn) Connect() error {
 func (db *dbConn) Ping(ctx context.Context) error {
 	err := db.conn.PingContext(ctx)
 	if err != nil {
+		log.Debug().Err(err).Msg("Ping to database failed")
 		return err
 	}
 	return nil

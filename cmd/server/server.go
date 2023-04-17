@@ -13,7 +13,7 @@ import (
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	usecase "github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
 	"github.com/gynshu-one/go-metric-collector/pkg/client/postgres"
-	"log"
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -56,31 +56,38 @@ func main() {
 		err := dbConn.Connect()
 		dbAdapter = adapters.NewAdapter(dbConn.GetConn())
 		if err != nil {
-			log.Fatal("Database connection error: ", err)
+			log.Fatal().Err(err).Msg("Database connection error")
 		}
 	}
+
+	log.Info().Msg("Database connected")
+
+	log.Info().Msg("Activating services")
 	storage = usecase.NewServerUseCase(service.NewMemService(&sync.Map{}), dbAdapter)
 	handler = hand.NewServerHandler(storage, dbConn)
 	router.Use(cors.Default(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression))
 	routers.MetricsRoute(router, handler)
+	log.Info().Msg("Services activated")
+
+	log.Info().Msg("Starting server on " + config.GetConfig().Server.Address)
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("listen: ", err)
+			log.Fatal().Err(err).Msg("Listen and serve error")
 		}
 	}()
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server...")
+
+	log.Info().Msg("Shutdown Server ...")
+
 	storage.Dump()
-	// The context is used to inform the server it has 5 seconds to finish
-	// the request it is currently handling
 	ctxShut, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctxShut); err != nil {
-		log.Fatal("ServerStorage forced to shutdown: ", err)
+		log.Fatal().Err(err).Msgf("Timeout of %d seconds exceeded, server forced to shutdown", 5)
 	}
 
-	log.Println("ServerStorage exiting")
+	log.Info().Msg("Server exiting")
 }

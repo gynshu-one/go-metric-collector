@@ -9,7 +9,7 @@ import (
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
 	"github.com/gynshu-one/go-metric-collector/pkg/client/postgres"
-	"log"
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -52,7 +52,7 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
 		return
 	}
-	//fmt.Printf("\nRequest: %s", input.String())
+	log.Debug().Msgf("Request ValueJson Input: %s", input.String())
 	err = getPreCheck(&input)
 	if err != nil {
 		handleCustomError(ctx, err)
@@ -64,7 +64,7 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 		return
 	}
 	output.CalculateHash(config.GetConfig().Key)
-	//fmt.Printf("\nResponse: %s", output.String())
+	log.Debug().Msgf("Request ValueJson Output: %s", output.String())
 	ctx.JSON(http.StatusOK, output)
 }
 func (h *handler) Value(ctx *gin.Context) {
@@ -173,24 +173,27 @@ func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 	for i := range input {
 		err = setPreCheck(input[i])
 		if err != nil {
-			log.Println(err.Error())
+			log.Error().Err(err).Msg("Some of the input metrics are invalid")
 			continue
 		}
 		val := h.storage.Set(input[i])
 		if val == nil {
-			log.Println(entity.NameTypeMismatch)
+			log.Error().Err(err).Msgf("Some of the input metrics are invalid %s", entity.UnableToStore)
 			continue
 		}
-		//inputMapper[input[i].ID] = val
 	}
 	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
 		h.storage.Dump()
 	}
+
+	// It would be reasonable to return the updated metrics, but looks like it's not required
+
 	//var output []entity.Metrics
 	//for i := range inputMapper {
 	//	inputMapper[i].CalculateHash(config.GetConfig().Key)
 	//	output = append(output, *inputMapper[i])
 	//}
+
 	ctx.Data(http.StatusOK, "application/json; charset=utf-8", []byte("{}"))
 }
 
