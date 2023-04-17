@@ -96,7 +96,7 @@ func (h *handler) report() {
 	}
 	log.Debug().Msg("Trying to report metrics by bulk")
 	err := h.bulkReport()
-	if !errors.Is(err, entity.BulkReport) {
+	if !errors.Is(err, entity.ErrBulkReport) {
 		return
 	}
 	log.Debug().Msg("Bulk report unsuccessful, reporting metrics one by one")
@@ -139,7 +139,7 @@ func (h *handler) bulkReport() error {
 	if err != nil {
 		if resp.StatusCode() == 404 {
 			log.Debug().Msgf("Path is unavailable: %v", resp)
-			return entity.BulkReport
+			return entity.ErrBulkReport
 		}
 		log.Error().Err(err).Msg("Error reporting metrics by bulk")
 		return err

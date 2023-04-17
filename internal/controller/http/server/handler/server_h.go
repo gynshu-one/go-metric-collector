@@ -52,7 +52,7 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
 		return
 	}
-	log.Debug().Msgf("Request ValueJson Input: %s", input.String())
+	log.Debug().Msgf("Request ValueJson Input: %s", input)
 	err = getPreCheck(&input)
 	if err != nil {
 		handleCustomError(ctx, err)
@@ -60,11 +60,11 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 	}
 	output := h.storage.Get(&input)
 	if output == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.MetricNotFound})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.ErrMetricNotFound})
 		return
 	}
 	output.CalculateHash(config.GetConfig().Key)
-	log.Debug().Msgf("Request ValueJson Output: %s", output.String())
+	log.Debug().Msgf("Request ValueJson Output: %s", output)
 	ctx.JSON(http.StatusOK, output)
 }
 func (h *handler) Value(ctx *gin.Context) {
@@ -79,7 +79,7 @@ func (h *handler) Value(ctx *gin.Context) {
 	}
 	output := h.storage.Get(&input)
 	if output == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.MetricNotFound})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.ErrMetricNotFound})
 		return
 	}
 	if output.Value != nil {
@@ -99,7 +99,7 @@ func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 	var input entity.Metrics
 	err := json.NewDecoder(ctx.Request.Body).Decode(&input)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.InvalidMetric})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.ErrInvalidMetric})
 		return
 	}
 	err = setPreCheck(&input)
@@ -109,7 +109,7 @@ func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 	}
 	output := h.storage.Set(&input)
 	if output == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.ErrNameTypeMismatch})
 		return
 	}
 	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
@@ -150,7 +150,7 @@ func (h *handler) UpdateMetric(ctx *gin.Context) {
 	h.storage.SetFltPrc(input.ID, metricValue)
 	output := h.storage.Set(&input)
 	if output == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.NameTypeMismatch})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.ErrNameTypeMismatch})
 		return
 	}
 	h.storage.SetFltPrc(input.ID, metricValue)
@@ -166,7 +166,7 @@ func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 	fmt.Println(ctx.Request.Body)
 	err := json.NewDecoder(ctx.Request.Body).Decode(&input)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.InvalidMetric})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": entity.ErrInvalidMetric})
 		return
 	}
 	//var inputMapper = make(map[string]*entity.Metrics)
@@ -178,7 +178,7 @@ func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 		}
 		val := h.storage.Set(input[i])
 		if val == nil {
-			log.Error().Err(err).Msgf("Some of the input metrics are invalid %s", entity.UnableToStore)
+			log.Error().Err(err).Msgf("Some of the input metrics are invalid %s", entity.ErrUnableToStore)
 			continue
 		}
 	}

@@ -15,15 +15,15 @@ import (
 func getPreCheck(m *entity.Metrics) error {
 	m.MType = strings.ToLower(m.MType)
 	if m.ID == "" {
-		return entity.MetricNameNotProvided
+		return entity.ErrMetricNameNotProvided
 	}
 	if m.MType == "" {
-		return entity.MetricTypeNotProvided
+		return entity.ErrMetricTypeNotProvided
 	}
 	switch m.MType {
 	case entity.GaugeType, entity.CounterType:
 	default:
-		return entity.InvalidType
+		return entity.ErrInvalidType
 	}
 	return nil
 }
@@ -32,35 +32,35 @@ func setPreCheck(m *entity.Metrics) error {
 	switch m.MType {
 	case entity.GaugeType, entity.CounterType:
 		if m.MType == entity.GaugeType && m.Value == nil {
-			return entity.TypeValueMismatch
+			return entity.ErrTypeValueMismatch
 		} else if m.MType == entity.CounterType && m.Delta == nil {
-			return entity.TypeValueMismatch
+			return entity.ErrTypeValueMismatch
 		}
 	default:
-		return entity.InvalidType
+		return entity.ErrInvalidType
 	}
 	if m.ID == "" {
-		return entity.MetricNameNotProvided
+		return entity.ErrMetricNameNotProvided
 	}
 	if config.GetConfig().Key != "" {
 		inputHash := m.Hash
 		m.CalculateHash(config.GetConfig().Key)
 		if !hmac.Equal([]byte(inputHash), []byte(m.Hash)) {
 			log.Debug().Msgf("Hash mismatch: %s != %s on %s", inputHash, m.Hash, m.String())
-			return entity.InvalidHash
+			return entity.ErrInvalidHash
 		}
 	}
 	return nil
 }
 func handleCustomError(ctx *gin.Context, err error) {
 	switch err {
-	case entity.InvalidType:
+	case entity.ErrInvalidType:
 		ctx.JSON(http.StatusNotImplemented, gin.H{"error": err.Error()})
 		return
-	case entity.TypeValueMismatch, entity.InvalidHash:
+	case entity.ErrTypeValueMismatch, entity.ErrInvalidHash:
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
-	case entity.DBConnError:
+	case entity.ErrDBConnError:
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	default:
