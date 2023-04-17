@@ -86,7 +86,7 @@ func (S *serverUseCase) fromDB() {
 	log.Info().Msg("Restoring previous state from DB...")
 	metrics, err := S.dbAdapter.GetMetrics()
 	if err != nil {
-		log.Error().Msgf("Error restoring from DB: %v", err)
+		log.Error().Err(err).Msg("Error restoring from DB")
 		return
 	}
 	for _, m := range metrics {
@@ -99,7 +99,7 @@ func (S *serverUseCase) toDB() {
 	allMetrics := S.GetAll()
 	err := S.dbAdapter.StoreMetrics(allMetrics)
 	if err != nil {
-		log.Error().Msgf("Error storing to DB: %v", err)
+		log.Error().Err(err).Msg("Error storing to DB")
 		return
 	}
 	log.Info().Msg("Successfully stored to DB")
@@ -109,14 +109,14 @@ func (S *serverUseCase) fromFile() {
 	log.Info().Msg("Restoring previous state from file...")
 	file, err := os.OpenFile(config.GetConfig().Server.StoreFile, os.O_RDONLY, 0666)
 	if err != nil {
-		log.Error().Msgf("Error opening file: %v", err)
+		log.Error().Err(err).Msg("Error opening file")
 		return
 	}
 	defer file.Close()
 	var metrics []*entity.Metrics
 	err = json.NewDecoder(file).Decode(&metrics)
 	if err != nil {
-		log.Error().Msgf("Error decoding json may be file is empty: %v", err)
+		log.Error().Err(err).Msg("Error decoding json may be file is empty:")
 		return
 	}
 	for _, m := range metrics {

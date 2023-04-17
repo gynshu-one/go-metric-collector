@@ -52,7 +52,7 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
 		return
 	}
-	log.Debug().Msgf("Request ValueJson Input: %s", input)
+	log.Debug().Interface("Request ValueJson Input: %s", input)
 	err = getPreCheck(&input)
 	if err != nil {
 		handleCustomError(ctx, err)
@@ -64,7 +64,7 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 		return
 	}
 	output.CalculateHash(config.GetConfig().Key)
-	log.Debug().Msgf("Request ValueJson Output: %s", output)
+	log.Debug().Interface("Request ValueJson Output: %s", output)
 	ctx.JSON(http.StatusOK, output)
 }
 func (h *handler) Value(ctx *gin.Context) {
@@ -178,7 +178,7 @@ func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 		}
 		val := h.storage.Set(input[i])
 		if val == nil {
-			log.Error().Err(err).Msgf("Some of the input metrics are invalid %s", entity.ErrUnableToStore)
+			log.Error().Err(err).Interface("Some of the input metrics are invalid %s", entity.ErrUnableToStore)
 			continue
 		}
 	}
