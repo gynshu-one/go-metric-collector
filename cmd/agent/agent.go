@@ -8,8 +8,7 @@ import (
 )
 
 var (
-	agent   ag.Handler
-	storage service.MemStorage
+	agent ag.Handler
 )
 
 func main() {

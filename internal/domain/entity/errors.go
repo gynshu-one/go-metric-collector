@@ -12,8 +12,6 @@ var (
 	MetricNameNotProvided = errors.New("metric name not provided")
 	MetricNotFound        = errors.New("metric not found")
 	InvalidHash           = errors.New("invalid hash")
-	HashNotProvided       = errors.New("env var KEY is set but hash is missing")
 	DBConnError           = errors.New("db connection error")
 	InvalidMetric         = errors.New("invalid metric")
-	EmptyMetric           = errors.New("empty metric")
 )

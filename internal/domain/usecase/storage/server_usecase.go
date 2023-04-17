@@ -103,7 +103,6 @@ func (S *serverUseCase) toDB() {
 		return
 	}
 	log.Info().Msg("Successfully stored to DB")
-	return
 }
 
 func (S *serverUseCase) fromFile() {

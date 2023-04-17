@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/andybalholm/brotli v1.0.5
-	github.com/fatih/color v1.15.0
 	github.com/gin-contrib/cors v1.4.0
 	github.com/gin-contrib/gzip v0.0.6
 	github.com/gin-gonic/gin v1.9.0
