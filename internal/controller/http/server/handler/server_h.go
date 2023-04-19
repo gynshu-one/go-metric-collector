@@ -113,7 +113,7 @@ func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 		return
 	}
 	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
-		h.storage.Dump()
+		h.storage.Dump(ctx.Request.Context())
 	}
 	output.CalculateHash(config.GetConfig().Key)
 	ctx.JSON(http.StatusOK, output)
@@ -155,7 +155,7 @@ func (h *handler) UpdateMetric(ctx *gin.Context) {
 	}
 	h.storage.SetFltPrc(input.ID, metricValue)
 	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
-		h.storage.Dump()
+		h.storage.Dump(ctx.Request.Context())
 	}
 	output.CalculateHash(config.GetConfig().Key)
 	ctx.JSON(http.StatusOK, output)
@@ -184,7 +184,7 @@ func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 		inputMapper[input[i].ID] = val
 	}
 	if config.GetConfig().Server.StoreInterval == 0 || config.GetConfig().Database.Address != "" {
-		h.storage.Dump()
+		h.storage.Dump(ctx.Request.Context())
 	}
 
 	var output []entity.Metrics
@@ -216,5 +216,5 @@ func (h *handler) PingDB(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "DBConn is live"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "Pong"})
 }

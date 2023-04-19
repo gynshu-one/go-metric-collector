@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gynshu-one/go-metric-collector/internal/adapters"
@@ -16,8 +17,8 @@ import (
 
 type ServerStorage interface {
 	service.MemStorage
-	Dump()
-	Restore()
+	Dump(context.Context)
+	Restore(context.Context)
 	SetFltPrc(name, p string)
 	GetFltPrc(name string) int
 }
@@ -28,14 +29,17 @@ type serverUseCase struct {
 	fltPrecision sync.Map
 }
 
-func NewServerUseCase(MemStorage service.MemStorage, dbAdapter adapters.DBAdapter) *serverUseCase {
+// NewServerUseCase creates new server storage, context is for filesDaemon
+// Which is used to ether restore previous state from file
+// or DB or to dump current state to file or DB (separate goroutine)
+func NewServerUseCase(ctx context.Context, MemStorage service.MemStorage, dbAdapter adapters.DBAdapter) *serverUseCase {
 	s := &serverUseCase{
 		MemStorage:   MemStorage,
 		dbAdapter:    dbAdapter,
 		fltPrecision: sync.Map{},
 	}
 	log.Info().Msg("Server storage initialized")
-	s.filesDaemon()
+	s.filesDaemon(ctx)
 	return s
 }
 func (S *serverUseCase) SetFltPrc(name, p string) {
@@ -52,39 +56,39 @@ func (S *serverUseCase) GetFltPrc(name string) int {
 	}
 	return 0
 }
-func (S *serverUseCase) filesDaemon() {
+func (S *serverUseCase) filesDaemon(ctx context.Context) {
 	if config.GetConfig().Server.Restore {
-		S.Restore()
+		S.Restore(ctx)
 	}
 	if config.GetConfig().Server.StoreInterval != 0 && config.GetConfig().Database.Address == "" {
 		go func() {
 			ticker := time.NewTicker(config.GetConfig().Server.StoreInterval)
 			for {
 				t := <-ticker.C
-				S.Dump()
+				S.Dump(ctx)
 				fmt.Println("Saved to file at", t)
 			}
 		}()
 	}
 }
-func (S *serverUseCase) Dump() {
+func (S *serverUseCase) Dump(ctx context.Context) {
 	if config.GetConfig().Database.Address != "" {
-		S.toDB()
+		S.toDB(ctx)
 	} else {
 		S.toFile()
 	}
 
 }
-func (S *serverUseCase) Restore() {
+func (S *serverUseCase) Restore(ctx context.Context) {
 	if config.GetConfig().Database.Address != "" {
-		S.fromDB()
+		S.fromDB(ctx)
 	} else {
 		S.fromFile()
 	}
 }
-func (S *serverUseCase) fromDB() {
+func (S *serverUseCase) fromDB(ctx context.Context) {
 	log.Info().Msg("Restoring previous state from DB...")
-	metrics, err := S.dbAdapter.GetMetrics()
+	metrics, err := S.dbAdapter.GetMetrics(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("Error restoring from DB")
 		return
@@ -95,9 +99,9 @@ func (S *serverUseCase) fromDB() {
 	log.Info().Msg("Successfully restored from DB")
 }
 
-func (S *serverUseCase) toDB() {
+func (S *serverUseCase) toDB(ctx context.Context) {
 	allMetrics := S.GetAll()
-	err := S.dbAdapter.StoreMetrics(allMetrics)
+	err := S.dbAdapter.StoreMetrics(ctx, allMetrics)
 	if err != nil {
 		log.Error().Err(err).Msg("Error storing to DB")
 		return

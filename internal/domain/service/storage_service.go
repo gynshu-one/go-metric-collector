@@ -33,12 +33,6 @@ func (M memService) Get(m *entity.Metrics) *entity.Metrics {
 func (M memService) Set(m *entity.Metrics) *entity.Metrics {
 	found, ok := M.repo.Load(m.ID)
 	if ok {
-		// Maybe we want to check this type of error in the future
-
-		//if found.(*entity.Metrics).MType != m.MType {
-		//	log.Printf("name and type you have sent mismatch with the one in the storage: \n%s\n%s", m.String(), found.(*entity.Metrics).String())
-		//	return nil
-		//}
 		if m.MType == entity.CounterType {
 			m.Delta = tools.Int64Ptr(*found.(*entity.Metrics).Delta + *m.Delta)
 		}

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -21,7 +22,7 @@ import (
 func setupRouter() (*gin.Engine, *handler) {
 	// Then init files
 	gin.SetMode(gin.TestMode)
-	h := NewServerHandler(usecase.NewServerUseCase(service.NewMemService(&sync.Map{}), nil), nil)
+	h := NewServerHandler(usecase.NewServerUseCase(context.Background(), service.NewMemService(&sync.Map{}), nil), nil)
 	r := gin.Default()
 	r.GET("/live", h.Live)
 	r.GET("/value/:metric_type/:metric_name", h.Value)
@@ -38,7 +39,7 @@ var (
 )
 
 func TestNewServerHandler(t *testing.T) {
-	h := NewServerHandler(usecase.NewServerUseCase(service.NewMemService(&sync.Map{}), nil), nil)
+	h := NewServerHandler(usecase.NewServerUseCase(context.Background(), service.NewMemService(&sync.Map{}), nil), nil)
 	assert.NotNil(t, h)
 	assert.NotNil(t, h.storage)
 }
