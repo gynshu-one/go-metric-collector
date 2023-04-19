@@ -55,14 +55,26 @@ func (a *dbAdapter) StoreMetrics(ctx context.Context, metrics []*entity.Metrics)
 	// ! I don't know how to do it better. Define timout on low level functions or on high level?
 	c, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer cancel()
-	tx, err := a.conn.BeginTx(c, nil)
+
+	// Begin transaction
+	tx, err := a.conn.BeginTxx(c, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to begin transaction StoreMetrics")
 		return err
 	}
 	defer tx.Rollback()
+
+	// Prepare statement to make transaction
+	smt, err := tx.PreparexContext(c, insertOrUpdate)
+	if err != nil {
+		log.Error().Err(err).Msg("Unable to prepare transaction StoreMetrics")
+		return err
+	}
+	defer smt.Close()
+
+	// Execute transaction
 	for _, m := range metrics {
-		_, err = tx.ExecContext(c, insertOrUpdate, m.ID, m.MType, m.Delta, m.Value, m.Hash)
+		_, err = smt.ExecContext(c, m.ID, m.MType, m.Delta, m.Value, m.Hash)
 		if err != nil {
 			return err
 		}
@@ -77,13 +89,35 @@ func (a *dbAdapter) StoreMetrics(ctx context.Context, metrics []*entity.Metrics)
 func (a *dbAdapter) GetMetrics(ctx context.Context) ([]*entity.Metrics, error) {
 	c, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
 	defer cancel()
-	rows, err := a.conn.QueryxContext(c, selectAll)
-	if err != nil || rows.Err() != nil {
-		log.Error().Err(err).Msg("Unable to get metrics")
+
+	// Begin transaction
+	tx, err := a.conn.BeginTxx(c, nil)
+	if err != nil {
+		log.Error().Err(err).Msg("Unable to begin transaction GetMetrics")
 		return nil, err
 	}
-	defer rows.Close()
+	defer tx.Rollback()
+
+	// Prepare statement to make transaction faster
+	smt, err := tx.PreparexContext(c, selectAll)
+	if err != nil {
+		log.Error().Err(err).Msg("Unable to prepare transaction GetMetrics")
+		return nil, err
+	}
+	defer smt.Close()
+
+	// Execute query
 	metrics := make([]*entity.Metrics, 0)
+	rows, err := smt.QueryxContext(c)
+	if err != nil {
+		log.Error().Err(err).Msg("Unable to query transaction GetMetrics")
+		return nil, err
+	}
+	if rows.Err() != nil {
+		log.Error().Err(rows.Err()).Msg("Unable to query transaction GetMetrics")
+		return nil, rows.Err()
+	}
+	defer rows.Close()
 	for rows.Next() {
 		var m entity.Metrics
 		err = rows.StructScan(&m)
@@ -92,6 +126,11 @@ func (a *dbAdapter) GetMetrics(ctx context.Context) ([]*entity.Metrics, error) {
 			return nil, err
 		}
 		metrics = append(metrics, &m)
+	}
+	err = tx.Commit()
+	if err != nil {
+		log.Error().Err(err).Msg("Unable to commit transaction GetMetrics")
+		return nil, err
 	}
 	return metrics, nil
 }
@@ -113,5 +152,6 @@ func (a *dbAdapter) commitScheme(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
