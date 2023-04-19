@@ -45,7 +45,6 @@ func (h *handler) Start() {
 			pollCount++
 			h.mu.Unlock()
 			h.readRuntime()
-			// Sleep for poll interval
 			time.Sleep(config.GetConfig().Agent.PollInterval)
 		}
 	}()
