@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
-	"fmt"
 	"github.com/andybalholm/brotli"
 	"github.com/gin-gonic/gin"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
+	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
 	"strings"
@@ -19,10 +19,13 @@ func MiscDecompress() gin.HandlerFunc {
 		encodings := strings.Split(encoding, ",")
 		if len(encodings) > 0 {
 			if tools.Contains(encodings, "gzip") {
+				log.Debug().Msg("Decompressing gzip")
 				c.Request = deCompressGzip(c.Request)
 			} else if tools.Contains(encodings, "deflate") {
+				log.Debug().Msg("Decompressing deflate")
 				c.Request = deCompressDeflate(c.Request)
 			} else if tools.Contains(encodings, "br") {
+				log.Debug().Msg("Decompressing br")
 				c.Request = deCompressBr(c.Request)
 			}
 		}
@@ -35,10 +38,12 @@ func deCompressDeflate(r *http.Request) *http.Request {
 	bt := new(bytes.Buffer)
 	_, err := bt.ReadFrom(r.Body)
 	if err != nil {
+		log.Trace().Msgf("Failed to read body Deflate: %v", err)
 		return nil
 	}
 	dc, err := decompressDeflate(bt.Bytes())
 	if err != nil {
+		log.Trace().Msgf("Failed to decompress Deflate: %v", err)
 		return nil
 	}
 	r.Body = io.NopCloser(bytes.NewReader(dc))
@@ -49,10 +54,12 @@ func deCompressGzip(r *http.Request) *http.Request {
 	bt := new(bytes.Buffer)
 	_, err := bt.ReadFrom(r.Body)
 	if err != nil {
+		log.Trace().Msgf("Failed to read body Gzip: %v", err)
 		return nil
 	}
 	dc, err := decompressGzip(bt.Bytes())
 	if err != nil {
+		log.Trace().Msgf("Failed to decompress Gzip: %v", err)
 		return nil
 	}
 	r.Body = io.NopCloser(bytes.NewReader(dc))
@@ -64,10 +71,12 @@ func deCompressBr(r *http.Request) *http.Request {
 	bt := new(bytes.Buffer)
 	_, err := bt.ReadFrom(r.Body)
 	if err != nil {
+		log.Trace().Msgf("Failed to read body Br: %v", err)
 		return nil
 	}
 	dc, err := decompressBr(bt.Bytes())
 	if err != nil {
+		log.Trace().Msgf("Failed to decompress Br: %v", err)
 		return nil
 	}
 	r.Body = io.NopCloser(bytes.NewReader(dc))
@@ -78,7 +87,7 @@ func decompressBr(data []byte) ([]byte, error) {
 	var b bytes.Buffer
 	_, err := b.ReadFrom(r)
 	if err != nil {
-		return nil, fmt.Errorf("failed decompress data: %v", err)
+		return nil, err
 	}
 
 	return b.Bytes(), nil
@@ -90,7 +99,7 @@ func decompressDeflate(data []byte) ([]byte, error) {
 	var b bytes.Buffer
 	_, err := b.ReadFrom(r)
 	if err != nil {
-		return nil, fmt.Errorf("failed decompress data: %v", err)
+		return nil, err
 	}
 
 	return b.Bytes(), nil
@@ -99,14 +108,14 @@ func decompressDeflate(data []byte) ([]byte, error) {
 func decompressGzip(data []byte) ([]byte, error) {
 	r, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("failed init decompress reader: %v", err)
+		return nil, err
 	}
 	defer r.Close()
 
 	var b bytes.Buffer
 	_, err = b.ReadFrom(r)
 	if err != nil {
-		return nil, fmt.Errorf("failed decompress data: %v", err)
+		return nil, err
 	}
 
 	return b.Bytes(), nil

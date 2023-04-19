@@ -1,7 +1,10 @@
-package handlers
+package agent
 
 import (
-	"github.com/gynshu-one/go-metric-collector/internal/storage"
+	config "github.com/gynshu-one/go-metric-collector/internal/config/agent"
+	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
+	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
+	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -21,50 +24,47 @@ func TestAgent(t *testing.T) {
 		{
 			name:           "basic test",
 			pollInterval:   500 * time.Millisecond,
-			reportInterval: 2 * time.Second,
+			reportInterval: 1 * time.Second,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/update/", r.URL.Path)
+				assert.Equal(t, "/updates/", r.URL.Path)
 				assert.Equal(t, "POST", r.Method)
 				w.WriteHeader(http.StatusOK)
 			}))
 			defer server.Close()
-
-			agent := NewAgent(tc.pollInterval, tc.reportInterval, server.URL)
-			var wg sync.WaitGroup
-			wg.Add(1)
+			config.GetConfig().Server.Address = server.URL
+			newAgent := NewAgent(service.NewMemService(&sync.Map{}))
+			runtime.Gosched()
 			go func() {
-				defer wg.Done()
-				agent.Start()
+				newAgent.Start()
 			}()
 
-			time.Sleep(5 * time.Second)
+			time.Sleep(12 * time.Second)
 
-			pq := &storage.Metrics{
+			pq := &entity.Metrics{
 				ID:    "PollCount",
-				MType: storage.CounterType,
+				MType: entity.CounterType,
+				Delta: tools.Int64Ptr(1),
 			}
-			rv := &storage.Metrics{
+			rv := &entity.Metrics{
 				ID:    "RandomValue",
-				MType: storage.GaugeType,
+				MType: entity.GaugeType,
+				Value: tools.Float64Ptr(1),
 			}
-			pollCountMetric := agent.memory.Get(pq)
+			pollCountMetric := newAgent.memory.Get(pq)
 			assert.NotNil(t, pollCountMetric)
-			assert.Equal(t, storage.CounterType, pollCountMetric.MType)
+			assert.Equal(t, entity.CounterType, pollCountMetric.MType)
 			assert.NotNil(t, pollCountMetric.Delta)
 			assert.True(t, *pollCountMetric.Delta > 0)
 
-			randomValueMetric := agent.memory.Get(rv)
+			randomValueMetric := newAgent.memory.Get(rv)
 			assert.NotNil(t, randomValueMetric)
-			assert.Equal(t, storage.GaugeType, randomValueMetric.MType)
+			assert.Equal(t, entity.GaugeType, randomValueMetric.MType)
 			assert.NotNil(t, randomValueMetric.Value)
-
-			runtime.Gosched()
-			wg.Done()
 		})
 	}
 }
