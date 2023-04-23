@@ -21,8 +21,9 @@ import (
 var client = resty.New()
 
 type handler struct {
-	mu     sync.Mutex
-	memory service.MemStorage
+	mu      sync.Mutex
+	memory  service.MemStorage
+	workers service.WorkerPool
 }
 
 type Handler interface {
@@ -31,7 +32,8 @@ type Handler interface {
 
 func NewAgent(storage service.MemStorage) *handler {
 	return &handler{
-		memory: storage,
+		memory:  storage,
+		workers: service.NewWorkerPool(config.GetConfig().Agent.RateLimit),
 	}
 }
 
@@ -136,31 +138,44 @@ func (h *handler) report() {
 		})
 	}
 	log.Debug().Msg("Trying to report metrics by bulk")
-	err := h.bulkReport()
-	if !errors.Is(err, entity.ErrBulkReport) {
-		return
-	}
+	h.workers.Push(&service.Task{
+		ID: "bulkReport",
+		Task: func() {
+			err := h.bulkReport()
+			if !errors.Is(err, entity.ErrBulkReport) {
+				return
+			}
+		},
+	})
 	log.Debug().Msg("Bulk report unsuccessful, reporting metrics one by one")
-	h.memory.ApplyToAll(makeReport)
+	h.workers.Push(&service.Task{
+		ID: "makeReport",
+		Task: func() {
+			h.makeReport()
+		},
+	})
+
 }
 
 // MakeReport makes a report to the server
 // Notice that serverAddr must include the protocol
-func makeReport(m *entity.Metrics) {
-	var err error
-	jsonData, err := json.Marshal(&m)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error marshalling metrics")
+func (h *handler) makeReport() {
+	for _, m := range h.memory.GetAll() {
+		var err error
+		jsonData, err := json.Marshal(m)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Error marshalling metrics")
+		}
+		resp, err := client.R().
+			SetHeader("Content-Type", "application/json").
+			SetBody(jsonData).
+			Post(config.GetConfig().Server.Address + "/update/")
+		if err != nil {
+			log.Error().Err(err).Msg("Error reporting metrics one by one")
+			return
+		}
+		resp.RawBody().Close()
 	}
-	resp, err := client.R().
-		SetHeader("Content-Type", "application/json").
-		SetBody(jsonData).
-		Post(config.GetConfig().Server.Address + "/update/")
-	if err != nil {
-		log.Error().Err(err).Msg("Error reporting metrics one by one")
-		return
-	}
-	defer resp.RawBody().Close()
 }
 
 func (h *handler) bulkReport() error {

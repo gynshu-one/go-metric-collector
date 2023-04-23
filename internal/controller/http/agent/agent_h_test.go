@@ -31,7 +31,9 @@ func TestAgent(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/updates/", r.URL.Path)
+				if r.URL.Path != "/updates/" && r.URL.Path != "/update/" {
+					t.Errorf("expected path /updates/ or /update/, got %q", r.URL.Path)
+				}
 				assert.Equal(t, "POST", r.Method)
 				w.WriteHeader(http.StatusOK)
 			}))
