@@ -14,6 +14,7 @@ type config struct {
 	Agent struct {
 		PollInterval   time.Duration `mapstructure:"POLL_INTERVAL"`
 		ReportInterval time.Duration `mapstructure:"REPORT_INTERVAL"`
+		RateLimit      int           `mapstructure:"RATE_LIMIT"`
 	}
 	Server struct {
 		Address string `mapstructure:"ADDRESS"`
@@ -52,6 +53,9 @@ func (config *config) readOs() {
 	if v.Get("KEY") != nil {
 		config.Key = v.GetString("KEY")
 	}
+	if v.Get("RATE_LIMIT") != nil {
+		config.Agent.RateLimit = v.GetInt("RATE_LIMIT")
+	}
 	config.Server.Address = "http://" + config.Server.Address
 }
 
@@ -64,6 +68,7 @@ func (config *config) readAgentFlags() {
 	appFlags.StringVar(&config.Key, "k", "", "hash key")
 	appFlags.DurationVar(&config.Agent.PollInterval, "p", 2*time.Second, "poll interval")
 	appFlags.DurationVar(&config.Agent.ReportInterval, "r", 10*time.Second, "report interval")
+	appFlags.IntVar(&config.Agent.RateLimit, "l", 2, "rate limit")
 
 	// Parse the flags using the new flag set
 	err := appFlags.Parse(os.Args[1:])
