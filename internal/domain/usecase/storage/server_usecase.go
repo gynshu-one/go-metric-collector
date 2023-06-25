@@ -123,6 +123,10 @@ func (S *serverUseCase) fromFile() {
 		log.Error().Err(err).Msg("Error decoding json may be file is empty:")
 		return
 	}
+	if metrics == nil {
+		log.Warn().Msg("File is empty")
+		return
+	}
 	for _, m := range metrics {
 		S.Set(m)
 	}

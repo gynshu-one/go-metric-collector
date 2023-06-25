@@ -1,3 +1,6 @@
+// Package service provides the implementation of the storage service
+// It is used by the controller to store and retrieve metrics
+// It is also used by the storage to dump metrics to the database
 package service
 
 import (
@@ -8,31 +11,40 @@ import (
 	"sync"
 )
 
+// MemStorage is the interface for the storage service
+// It provides methods to get and set metrics as well as apply a function to all metrics
 type MemStorage interface {
 	Get(id string) *entity.Metrics
 	Set(m *entity.Metrics) *entity.Metrics
 	ApplyToAll(f entity.ApplyToAll, exclude ...string)
 	GetAll() []*entity.Metrics
 }
-
 type memService struct {
 	repo map[string]*entity.Metrics
-	mu   *sync.Mutex
+	mu   sync.Mutex
 }
 
 func NewMemService() *memService {
-	return &memService{repo: make(map[string]*entity.Metrics), mu: new(sync.Mutex)}
+	return &memService{repo: make(map[string]*entity.Metrics)}
 }
 
-func (M memService) Get(id string) *entity.Metrics {
+// Get retrieves a metric from the storage
+func (M *memService) Get(id string) *entity.Metrics {
+	M.mu.Lock()
+	defer M.mu.Unlock()
 	return M.repo[id]
 }
 
-func (M memService) Set(m *entity.Metrics) *entity.Metrics {
+// Set stores a metric in the storage
+// If the metric already exists, it will be updated
+func (M *memService) Set(m *entity.Metrics) *entity.Metrics {
+	if m == nil {
+		return nil
+	}
 	M.mu.Lock()
 	defer M.mu.Unlock()
-	found := M.repo[m.ID]
-	if found != nil {
+	found, ok := M.repo[m.ID]
+	if ok {
 		if m.MType == entity.CounterType {
 			m.Delta = tools.Int64Ptr(*found.Delta + *m.Delta)
 		}
@@ -48,26 +60,26 @@ func (M memService) Set(m *entity.Metrics) *entity.Metrics {
 	return found
 }
 
-// ApplyToAll applies the function f to all metrics in the MemStorage
-// Default exclusion is "PauseNs", "PauseEnd", "EnableGC", "DebugGC", "BySize"
-// Additional exclusion can be passed as a variadic argument
-// This function does not change the value of any metric
-func (M memService) ApplyToAll(f entity.ApplyToAll, exclude ...string) {
+// ApplyToAll applies a function to all metrics in the storage
+// It is used to update the metrics when a new interval starts
+// You can exclude some metrics from the update by passing their name as a parameter
+func (M *memService) ApplyToAll(f entity.ApplyToAll, exclude ...string) {
 	var defaultExclusion = []string{"PauseNs", "PauseEnd", "EnableGC", "DebugGC", "BySize"}
 	defaultExclusion = append(defaultExclusion, exclude...)
+	M.mu.Lock()
+	defer M.mu.Unlock()
 	for k, v := range M.repo {
-		M.mu.Lock()
 		if !tools.Contains(defaultExclusion, k) {
 			f(v)
 		}
-		M.mu.Unlock()
 	}
 }
 
-func (M memService) GetAll() []*entity.Metrics {
+// GetAll returns all metrics in the storage
+func (M *memService) GetAll() []*entity.Metrics {
 	M.mu.Lock()
 	defer M.mu.Unlock()
-	metrics := make([]*entity.Metrics, len(M.repo))
+	metrics := make([]*entity.Metrics, 0, len(M.repo))
 	for _, v := range M.repo {
 		metrics = append(metrics, v)
 	}
