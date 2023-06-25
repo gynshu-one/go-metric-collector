@@ -17,7 +17,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
+	"runtime"
+	"runtime/pprof"
 	"syscall"
 	"time"
 )
@@ -50,10 +51,20 @@ func init() {
 
 // ServerStorage that receives runtime metrics from the agent. with a configurable pollInterval.
 func main() {
+	f, err := os.Create("server_mem.prof")
+	if err != nil {
+		log.Fatal().Err(err).Msg("could not create memory profile")
+	}
+	runtime.GC()
+	if err = pprof.WriteHeapProfile(f); err != nil {
+		log.Fatal().Err(err).Msg("could not write memory profile")
+	}
+	f.Close()
+
 	ctx := context.Background()
 	dbConn = postgres.NewDB()
 	if config.GetConfig().Database.Address != "" {
-		err := dbConn.Connect()
+		err = dbConn.Connect()
 		dbAdapter = adapters.NewAdapter(ctx, dbConn.GetConn())
 		if err != nil {
 			log.Fatal().Err(err).Msg("Database connection error")
@@ -63,7 +74,7 @@ func main() {
 	log.Info().Msg("Database connected")
 
 	log.Info().Msg("Activating services")
-	storage = usecase.NewServerUseCase(ctx, service.NewMemService(&sync.Map{}), dbAdapter)
+	storage = usecase.NewServerUseCase(ctx, service.NewMemService(), dbAdapter)
 	handler = hand.NewServerHandler(storage, dbConn)
 	router.Use(cors.Default(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression))
 	routers.MetricsRoute(router, handler)
@@ -76,6 +87,7 @@ func main() {
 			log.Fatal().Err(err).Msg("Listen and serve error")
 		}
 	}()
+	go http.ListenAndServe("localhost:9090", nil)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

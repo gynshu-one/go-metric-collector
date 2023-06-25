@@ -4,7 +4,9 @@ import (
 	ag "github.com/gynshu-one/go-metric-collector/internal/controller/http/agent"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	"github.com/rs/zerolog/log"
-	"sync"
+	"os"
+	"runtime"
+	"runtime/pprof"
 )
 
 var (
@@ -12,7 +14,17 @@ var (
 )
 
 func main() {
-	agent = ag.NewAgent(service.NewMemService(&sync.Map{}))
+	f, err := os.Create("server_mem.prof")
+	if err != nil {
+		log.Fatal().Err(err).Msg("could not create memory profile")
+	}
+	runtime.GC()
+	if err = pprof.WriteHeapProfile(f); err != nil {
+		log.Fatal().Err(err).Msg("could not write memory profile")
+	}
+	f.Close()
+
+	agent = ag.NewAgent(service.NewMemService())
 	log.Info().Msg("Agent started")
 	agent.Start()
 }

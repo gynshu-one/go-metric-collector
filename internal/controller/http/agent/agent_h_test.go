@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"runtime"
-	"sync"
 	"testing"
 	"time"
 )
@@ -39,7 +38,7 @@ func TestAgent(t *testing.T) {
 			}))
 			defer server.Close()
 			config.GetConfig().Server.Address = server.URL
-			newAgent := NewAgent(service.NewMemService(&sync.Map{}))
+			newAgent := NewAgent(service.NewMemService())
 			runtime.Gosched()
 			go func() {
 				newAgent.Start()
@@ -57,13 +56,13 @@ func TestAgent(t *testing.T) {
 				MType: entity.GaugeType,
 				Value: tools.Float64Ptr(1),
 			}
-			pollCountMetric := newAgent.memory.Get(pq)
+			pollCountMetric := newAgent.memory.Get(pq.ID)
 			assert.NotNil(t, pollCountMetric)
 			assert.Equal(t, entity.CounterType, pollCountMetric.MType)
 			assert.NotNil(t, pollCountMetric.Delta)
 			assert.True(t, *pollCountMetric.Delta > 0)
 
-			randomValueMetric := newAgent.memory.Get(rv)
+			randomValueMetric := newAgent.memory.Get(rv.ID)
 			assert.NotNil(t, randomValueMetric)
 			assert.Equal(t, entity.GaugeType, randomValueMetric.MType)
 			assert.NotNil(t, randomValueMetric.Value)

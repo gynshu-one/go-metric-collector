@@ -4,48 +4,48 @@ import (
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"github.com/rs/zerolog/log"
+	_ "net/http/pprof"
 	"sync"
 )
 
 type MemStorage interface {
-	Get(m *entity.Metrics) *entity.Metrics
+	Get(id string) *entity.Metrics
 	Set(m *entity.Metrics) *entity.Metrics
 	ApplyToAll(f entity.ApplyToAll, exclude ...string)
 	GetAll() []*entity.Metrics
 }
 
 type memService struct {
-	repo *sync.Map
+	repo map[string]*entity.Metrics
+	mu   *sync.Mutex
 }
 
-func NewMemService(repo *sync.Map) *memService {
-	return &memService{repo: repo}
+func NewMemService() *memService {
+	return &memService{repo: make(map[string]*entity.Metrics), mu: new(sync.Mutex)}
 }
 
-func (M memService) Get(m *entity.Metrics) *entity.Metrics {
-	found, ok := M.repo.Load(m.ID)
-	if !ok {
-		return nil
-	}
-	return found.(*entity.Metrics)
+func (M memService) Get(id string) *entity.Metrics {
+	return M.repo[id]
 }
 
 func (M memService) Set(m *entity.Metrics) *entity.Metrics {
-	found, ok := M.repo.Load(m.ID)
-	if ok {
+	M.mu.Lock()
+	defer M.mu.Unlock()
+	found := M.repo[m.ID]
+	if found != nil {
 		if m.MType == entity.CounterType {
-			m.Delta = tools.Int64Ptr(*found.(*entity.Metrics).Delta + *m.Delta)
+			m.Delta = tools.Int64Ptr(*found.Delta + *m.Delta)
 		}
-		M.repo.Store(m.ID, m)
+		M.repo[m.ID] = m
 	} else {
-		M.repo.Store(m.ID, m)
+		M.repo[m.ID] = m
 	}
-	found, ok = M.repo.Load(m.ID)
-	if !ok {
+	found = M.repo[m.ID]
+	if found == nil {
 		log.Error().Msgf("Failed to store metric: %s", m.String())
 		return nil
 	}
-	return found.(*entity.Metrics)
+	return found
 }
 
 // ApplyToAll applies the function f to all metrics in the MemStorage
@@ -55,19 +55,21 @@ func (M memService) Set(m *entity.Metrics) *entity.Metrics {
 func (M memService) ApplyToAll(f entity.ApplyToAll, exclude ...string) {
 	var defaultExclusion = []string{"PauseNs", "PauseEnd", "EnableGC", "DebugGC", "BySize"}
 	defaultExclusion = append(defaultExclusion, exclude...)
-	M.repo.Range(func(key, value interface{}) bool {
-		if !tools.Contains(defaultExclusion, key.(string)) {
-			f(value.(*entity.Metrics))
+	for k, v := range M.repo {
+		M.mu.Lock()
+		if !tools.Contains(defaultExclusion, k) {
+			f(v)
 		}
-		return true
-	})
+		M.mu.Unlock()
+	}
 }
 
 func (M memService) GetAll() []*entity.Metrics {
-	var metrics []*entity.Metrics
-	M.repo.Range(func(key, value interface{}) bool {
-		metrics = append(metrics, value.(*entity.Metrics))
-		return true
-	})
+	M.mu.Lock()
+	defer M.mu.Unlock()
+	metrics := make([]*entity.Metrics, len(M.repo))
+	for _, v := range M.repo {
+		metrics = append(metrics, v)
+	}
 	return metrics
 }

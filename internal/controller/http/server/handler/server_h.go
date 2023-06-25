@@ -58,7 +58,7 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 		handleCustomError(ctx, err)
 		return
 	}
-	output := h.storage.Get(&input)
+	output := h.storage.Get(input.ID)
 	if output == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.ErrMetricNotFound})
 		return
@@ -77,7 +77,7 @@ func (h *handler) Value(ctx *gin.Context) {
 		handleCustomError(ctx, err)
 		return
 	}
-	output := h.storage.Get(&input)
+	output := h.storage.Get(input.ID)
 	if output == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.ErrMetricNotFound})
 		return
