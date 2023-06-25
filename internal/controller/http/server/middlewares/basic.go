@@ -1,3 +1,4 @@
+// Package middlewares contains the basic compression and decompression middlewares
 package middlewares
 
 import (
