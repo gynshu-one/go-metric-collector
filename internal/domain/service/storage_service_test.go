@@ -17,7 +17,6 @@ func populate(numberOfElements int, service *memService) {
 	for _, m := range metrics {
 		service.Set(m)
 	}
-	return
 }
 
 func BenchmarkStorageService_Set(b *testing.B) {
@@ -60,9 +59,8 @@ func BenchmarkStorageService_ApplyToAll(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		service.ApplyToAll(func(m *entity.Metrics) {
-			m.String()
+			_ = m.String()
 		})
-		//service.GetAll()
 		k++
 	}
 

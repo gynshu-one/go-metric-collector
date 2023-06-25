@@ -4,7 +4,6 @@ import (
 	config "github.com/gynshu-one/go-metric-collector/internal/config/agent"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
-	"github.com/gynshu-one/go-metric-collector/internal/tools"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -46,23 +45,13 @@ func TestAgent(t *testing.T) {
 
 			time.Sleep(12 * time.Second)
 
-			pq := &entity.Metrics{
-				ID:    "PollCount",
-				MType: entity.CounterType,
-				Delta: tools.Int64Ptr(1),
-			}
-			rv := &entity.Metrics{
-				ID:    "RandomValue",
-				MType: entity.GaugeType,
-				Value: tools.Float64Ptr(1),
-			}
-			pollCountMetric := newAgent.memory.Get(pq.ID)
+			pollCountMetric := newAgent.memory.Get("PollCount")
 			assert.NotNil(t, pollCountMetric)
 			assert.Equal(t, entity.CounterType, pollCountMetric.MType)
 			assert.NotNil(t, pollCountMetric.Delta)
 			assert.True(t, *pollCountMetric.Delta > 0)
 
-			randomValueMetric := newAgent.memory.Get(rv.ID)
+			randomValueMetric := newAgent.memory.Get("RandomValue")
 			assert.NotNil(t, randomValueMetric)
 			assert.Equal(t, entity.GaugeType, randomValueMetric.MType)
 			assert.NotNil(t, randomValueMetric.Value)
