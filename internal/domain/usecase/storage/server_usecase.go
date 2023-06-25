@@ -1,3 +1,5 @@
+// Package storage contains all the storage implementations of the domain
+// a little bit modified version of storage service
 package storage
 
 import (
@@ -15,6 +17,10 @@ import (
 	"time"
 )
 
+// ServerStorage is an interface for server storage
+// It is used in server use case and contains all the methods of
+// MemStorage interface and some additional methods such as Dump and Restore, SetFltPrc and GetFltPrc
+// Which are specific for server side
 type ServerStorage interface {
 	service.MemStorage
 	Dump(context.Context)
@@ -42,6 +48,9 @@ func NewServerUseCase(ctx context.Context, MemStorage service.MemStorage, dbAdap
 	s.filesDaemon(ctx)
 	return s
 }
+
+// SetFltPrc sets precision for float metrics, it is used in iter3
+// to pass autotests
 func (S *serverUseCase) SetFltPrc(name, p string) {
 	precision := strings.Split(p, ".")
 	if len(precision) < 2 {
@@ -50,6 +59,8 @@ func (S *serverUseCase) SetFltPrc(name, p string) {
 	}
 	S.fltPrecision.Store(name, len(precision[1]))
 }
+
+// GetFltPrc returns precision for float metrics
 func (S *serverUseCase) GetFltPrc(name string) int {
 	if v, ok := S.fltPrecision.Load(name); ok {
 		return v.(int)
@@ -71,6 +82,8 @@ func (S *serverUseCase) filesDaemon(ctx context.Context) {
 		}()
 	}
 }
+
+// Dump dumps current state to file or DB
 func (S *serverUseCase) Dump(ctx context.Context) {
 	if config.GetConfig().Database.Address != "" {
 		S.toDB(ctx)
@@ -79,6 +92,8 @@ func (S *serverUseCase) Dump(ctx context.Context) {
 	}
 
 }
+
+// Restore  dumps current state to file or DB
 func (S *serverUseCase) Restore(ctx context.Context) {
 	if config.GetConfig().Database.Address != "" {
 		S.fromDB(ctx)

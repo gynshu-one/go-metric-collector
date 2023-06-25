@@ -1,3 +1,7 @@
+// Package agent contains the implementation of the agent
+// It is responsible for collecting metrics and reporting them to the server
+// Basically it collects metrics from the runtime, uses reflection to get metrics by field name
+// and reports them to the server
 package agent
 
 import (

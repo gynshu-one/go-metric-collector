@@ -43,6 +43,7 @@ func newQueue() *queue {
 	}
 }
 
+// Push simply pushes a new task to the queue
 func (q *queue) Push(t *Task) {
 	defer func() {
 		if r := recover(); r != nil {
