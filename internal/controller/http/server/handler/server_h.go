@@ -10,6 +10,7 @@ import (
 	"github.com/gynshu-one/go-metric-collector/internal/domain/usecase/storage"
 	"github.com/gynshu-one/go-metric-collector/repos/postgres"
 	"github.com/rs/zerolog/log"
+	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -50,7 +51,12 @@ func (h *handler) Live(ctx *gin.Context) {
 func (h *handler) ValueJSON(ctx *gin.Context) {
 	var input entity.Metrics
 	body := ctx.Request.Body
-	defer body.Close()
+	defer func(body io.ReadCloser) {
+		err := body.Close()
+		if err != nil {
+			log.Trace().Err(err).Msg("Error while closing body")
+		}
+	}(body)
 	err := json.NewDecoder(body).Decode(&input)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})

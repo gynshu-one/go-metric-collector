@@ -18,7 +18,10 @@ func ExampleHandler_ValueJSON() {
 	}
 
 	body := new(bytes.Buffer)
-	json.NewEncoder(body).Encode(testMetric)
+	err := json.NewEncoder(body).Encode(testMetric)
+	if err != nil {
+		return
+	}
 
 	// Set the metric to the storage first
 	// as if it was already there
@@ -64,7 +67,10 @@ func ExampleHandler_UpdateMetricsJSON() {
 	}
 
 	body := new(bytes.Buffer)
-	json.NewEncoder(body).Encode(testMetric)
+	err := json.NewEncoder(body).Encode(testMetric)
+	if err != nil {
+		return
+	}
 
 	// Create a new HTTP request
 	req := httptest.NewRequest(http.MethodPost, "/update/", body)
@@ -96,7 +102,10 @@ func ExampleHandler_BulkUpdateJSON() {
 	}
 
 	body := new(bytes.Buffer)
-	json.NewEncoder(body).Encode(testMetric)
+	err := json.NewEncoder(body).Encode(testMetric)
+	if err != nil {
+		return
+	}
 
 	// Create a new HTTP request
 	req := httptest.NewRequest(http.MethodPost, "/update/", body)

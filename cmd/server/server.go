@@ -59,7 +59,10 @@ func main() {
 	if err = pprof.WriteHeapProfile(f); err != nil {
 		log.Fatal().Err(err).Msg("could not write memory profile")
 	}
-	f.Close()
+	err = f.Close()
+	if err != nil {
+		return
+	}
 
 	ctx := context.Background()
 	dbConn = postgres.NewDB()
@@ -83,11 +86,16 @@ func main() {
 	log.Info().Msg("Starting server on " + config.GetConfig().Server.Address)
 
 	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal().Err(err).Msg("Listen and serve error")
 		}
 	}()
-	go http.ListenAndServe("localhost:9090", nil)
+	go func() {
+		err = http.ListenAndServe("localhost:9090", nil)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Listen and serve error")
+		}
+	}()
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -97,7 +105,7 @@ func main() {
 	storage.Dump(ctx)
 	ctxShut, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	if err := server.Shutdown(ctxShut); err != nil {
+	if err = server.Shutdown(ctxShut); err != nil {
 		log.Fatal().Err(err).Msgf("Timeout of %d seconds exceeded, server forced to shutdown", 5)
 	}
 

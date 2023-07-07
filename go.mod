@@ -9,15 +9,19 @@ require (
 	github.com/gin-gonic/gin v1.9.0
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/jmoiron/sqlx v1.3.5
+	github.com/kisielk/errcheck v1.6.3
 	github.com/lib/pq v1.10.7
 	github.com/mackerelio/go-osstat v0.2.4
 	github.com/rs/zerolog v1.29.1
 	github.com/shirou/gopsutil/v3 v3.23.3
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.2
+	golang.org/x/tools v0.11.0
+	honnef.co/go/tools v0.4.3
 )
 
 require (
+	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/bytedance/sonic v1.8.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -53,10 +57,12 @@ require (
 	github.com/ugorji/go/codec v1.2.9 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670 // indirect
-	golang.org/x/crypto v0.6.0 // indirect
-	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sys v0.6.0 // indirect
-	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/crypto v0.11.0 // indirect
+	golang.org/x/exp/typeparams v0.0.0-20230626212559-97b1e661b5df // indirect
+	golang.org/x/mod v0.12.0 // indirect
+	golang.org/x/net v0.12.0 // indirect
+	golang.org/x/sys v0.10.0 // indirect
+	golang.org/x/text v0.11.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

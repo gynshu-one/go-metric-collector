@@ -131,7 +131,12 @@ func (S *serverUseCase) fromFile() {
 		log.Warn().Err(err).Msg("Error opening file to restore")
 		return
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err = file.Close()
+		if err != nil {
+			log.Trace().Err(err).Msg("Error closing file")
+		}
+	}(file)
 	var metrics []*entity.Metrics
 	err = json.NewDecoder(file).Decode(&metrics)
 	if err != nil {

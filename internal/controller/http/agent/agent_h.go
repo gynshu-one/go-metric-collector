@@ -178,7 +178,10 @@ func (h *handler) makeReport() {
 			log.Error().Err(err).Msg("Error reporting metrics one by one")
 			return
 		}
-		resp.RawBody().Close()
+		err = resp.RawBody().Close()
+		if err != nil {
+			return
+		}
 	}
 }
 

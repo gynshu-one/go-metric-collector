@@ -22,7 +22,7 @@ func main() {
 	if err = pprof.WriteHeapProfile(f); err != nil {
 		log.Fatal().Err(err).Msg("could not write memory profile")
 	}
-	f.Close()
+	_ = f.Close()
 
 	agent = ag.NewAgent(service.NewMemService())
 	log.Info().Msg("Agent started")
