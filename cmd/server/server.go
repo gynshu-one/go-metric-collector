@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
@@ -24,11 +25,14 @@ import (
 )
 
 var (
-	storage usecase.ServerStorage
-	server  *http.Server
-	handler hand.Handler
-	router  *gin.Engine
-	dbConn  postgres.DBConn
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+	storage      usecase.ServerStorage
+	server       *http.Server
+	handler      hand.Handler
+	router       *gin.Engine
+	dbConn       postgres.DBConn
 
 	dbAdapter adapters.DBAdapter
 )
@@ -51,6 +55,19 @@ func init() {
 
 // ServerStorage that receives runtime metrics from the agent. with a configurable pollInterval.
 func main() {
+	if buildVersion == "" {
+		buildVersion = "N/A"
+	}
+	if buildDate == "" {
+		buildDate = "N/A"
+	}
+	if buildCommit == "" {
+		buildCommit = "N/A"
+	}
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
+
 	f, err := os.Create("server_mem.prof")
 	if err != nil {
 		log.Fatal().Err(err).Msg("could not create memory profile")
