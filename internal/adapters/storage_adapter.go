@@ -2,6 +2,8 @@ package adapters
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog/log"
@@ -62,7 +64,12 @@ func (a *dbAdapter) StoreMetrics(ctx context.Context, metrics []*entity.Metrics)
 		log.Error().Err(err).Msg("Unable to begin transaction StoreMetrics")
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		err = tx.Rollback()
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+			log.Trace().Err(err).Msg("Unable to rollback transaction StoreMetrics")
+		}
+	}()
 
 	// Prepare statement to make transaction
 	smt, err := tx.PreparexContext(c, insertOrUpdate)
@@ -70,7 +77,12 @@ func (a *dbAdapter) StoreMetrics(ctx context.Context, metrics []*entity.Metrics)
 		log.Error().Err(err).Msg("Unable to prepare transaction StoreMetrics")
 		return err
 	}
-	defer smt.Close()
+	defer func() {
+		err = smt.Close()
+		if err != nil {
+			log.Trace().Err(err).Msg("Unable to close statement StoreMetrics")
+		}
+	}()
 
 	// Execute transaction
 	for _, m := range metrics {
@@ -96,7 +108,12 @@ func (a *dbAdapter) GetMetrics(ctx context.Context) ([]*entity.Metrics, error) {
 		log.Error().Err(err).Msg("Unable to begin transaction GetMetrics")
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() {
+		err = tx.Rollback()
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+			log.Trace().Err(err).Msg("Unable to rollback transaction GetMetrics")
+		}
+	}()
 
 	// Prepare statement to make transaction faster
 	smt, err := tx.PreparexContext(c, selectAll)
@@ -104,7 +121,12 @@ func (a *dbAdapter) GetMetrics(ctx context.Context) ([]*entity.Metrics, error) {
 		log.Error().Err(err).Msg("Unable to prepare transaction GetMetrics")
 		return nil, err
 	}
-	defer smt.Close()
+	defer func() {
+		err = smt.Close()
+		if err != nil {
+			log.Trace().Err(err).Msg("Unable to close statement GetMetrics")
+		}
+	}()
 
 	// Execute query
 	metrics := make([]*entity.Metrics, 0)
@@ -117,7 +139,12 @@ func (a *dbAdapter) GetMetrics(ctx context.Context) ([]*entity.Metrics, error) {
 		log.Error().Err(rows.Err()).Msg("Unable to query transaction GetMetrics")
 		return nil, rows.Err()
 	}
-	defer rows.Close()
+	defer func() {
+		err = rows.Close()
+		if err != nil {
+			log.Trace().Err(err).Msg("Unable to close rows")
+		}
+	}()
 	for rows.Next() {
 		var m entity.Metrics
 		err = rows.StructScan(&m)
@@ -143,13 +170,18 @@ func (a *dbAdapter) commitScheme(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		err = tx.Rollback()
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+			log.Trace().Err(err).Msg("Unable to rollback transaction commitScheme")
+		}
+	}()
 	_, err = tx.ExecContext(ctx, insert, "test2", "test1", 1, 1.0, "test1")
 	if err != nil {
 		return err
 	}
 	err = tx.Rollback()
-	if err != nil {
+	if err != nil && !errors.Is(err, sql.ErrTxDone) {
 		return err
 	}
 

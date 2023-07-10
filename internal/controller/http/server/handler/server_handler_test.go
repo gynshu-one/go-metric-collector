@@ -15,14 +15,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
-	"sync"
 	"testing"
 )
 
 func setupRouter() (*gin.Engine, *handler) {
 	// Then init files
 	gin.SetMode(gin.TestMode)
-	h := NewServerHandler(usecase.NewServerUseCase(context.Background(), service.NewMemService(&sync.Map{}), nil), nil)
+	h := NewServerHandler(usecase.NewServerUseCase(context.Background(), service.NewMemService(), nil), nil)
 	r := gin.Default()
 	r.GET("/live", h.Live)
 	r.GET("/value/:metric_type/:metric_name", h.Value)
@@ -39,7 +38,7 @@ var (
 )
 
 func TestNewServerHandler(t *testing.T) {
-	h := NewServerHandler(usecase.NewServerUseCase(context.Background(), service.NewMemService(&sync.Map{}), nil), nil)
+	h := NewServerHandler(usecase.NewServerUseCase(context.Background(), service.NewMemService(), nil), nil)
 	assert.NotNil(t, h)
 	assert.NotNil(t, h.storage)
 }
@@ -159,7 +158,7 @@ func TestUpdateMetricsJSON(t *testing.T) {
 			router.ServeHTTP(resp, req)
 			assert.Equal(t, tc.status, resp.Code)
 
-			updatedMetric := serverHandler.storage.Get(tc.arg)
+			updatedMetric := serverHandler.storage.Get(tc.arg.ID)
 			if tc.status != http.StatusOK {
 				assert.Nil(t, updatedMetric)
 				return
@@ -229,7 +228,7 @@ func TestUpdateMetrics(t *testing.T) {
 			router.ServeHTTP(resp, req)
 			assert.Equal(t, tc.status, resp.Code)
 
-			updatedMetric := serverHandler.storage.Get(tc.arg)
+			updatedMetric := serverHandler.storage.Get(tc.arg.ID)
 			if tc.status != http.StatusOK {
 				assert.Nil(t, updatedMetric)
 				return

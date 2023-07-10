@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+// getPreCheck checks if the metric is valid for GET request
+// returns predefined error if not
 func getPreCheck(m *entity.Metrics) error {
 	m.MType = strings.ToLower(m.MType)
 	if m.ID == "" {
@@ -27,6 +29,9 @@ func getPreCheck(m *entity.Metrics) error {
 	}
 	return nil
 }
+
+// setPreCheck checks if the metric is valid for SET request
+// returns predefined error if not
 func setPreCheck(m *entity.Metrics) error {
 	m.MType = strings.ToLower(m.MType)
 	switch m.MType {
@@ -52,6 +57,8 @@ func setPreCheck(m *entity.Metrics) error {
 	}
 	return nil
 }
+
+// handleCustomError handles predefined errors
 func handleCustomError(ctx *gin.Context, err error) {
 	switch err {
 	case entity.ErrInvalidType:
@@ -68,6 +75,8 @@ func handleCustomError(ctx *gin.Context, err error) {
 		return
 	}
 }
+
+// generateHTMLTable generates HTML table from storage that further can be used in /metrics endpoint
 func generateHTMLTable(M storage.ServerStorage) []string {
 	var table []string
 	M.ApplyToAll(func(m *entity.Metrics) {

@@ -1,3 +1,4 @@
+// Package middlewares contains the basic compression and decompression middlewares
 package middlewares
 
 import (
@@ -94,7 +95,12 @@ func decompressBr(data []byte) ([]byte, error) {
 }
 func decompressDeflate(data []byte) ([]byte, error) {
 	r := flate.NewReader(bytes.NewReader(data))
-	defer r.Close()
+	defer func() {
+		err := r.Close()
+		if err != nil {
+			log.Trace().Msgf("Failed to close deflate reader: %v", err)
+		}
+	}()
 
 	var b bytes.Buffer
 	_, err := b.ReadFrom(r)
@@ -110,7 +116,12 @@ func decompressGzip(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+	defer func() {
+		err = r.Close()
+		if err != nil {
+			log.Trace().Msgf("Failed to close gzip reader: %v", err)
+		}
+	}()
 
 	var b bytes.Buffer
 	_, err = b.ReadFrom(r)

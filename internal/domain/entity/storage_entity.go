@@ -56,3 +56,21 @@ func (M *Metrics) CalculateHash(key string) string {
 	M.Hash = hex.EncodeToString(h.Sum(nil))
 	return M.Hash
 }
+
+func NewMetrics(id, mType string, value interface{}) *Metrics {
+	m := &Metrics{
+		ID:    id,
+		MType: mType,
+	}
+	switch mType {
+	case GaugeType:
+		v := value.(float64)
+		m.Value = &v
+	case CounterType:
+		v := value.(int64)
+		m.Delta = &v
+	default:
+		return nil
+	}
+	return m
+}

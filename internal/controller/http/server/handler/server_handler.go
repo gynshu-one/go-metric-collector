@@ -40,13 +40,22 @@ func NewServerHandler(storage storage.ServerStorage, db postgres.DBConn) *handle
 	}
 	return hand
 }
+
+// Live is a handler for /live endpoint to check if server is alive
 func (h *handler) Live(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "ServerStorage is live"})
 }
+
+// ValueJSON is a handler for POST "/value/" endpoint to get metric value in JSON format
 func (h *handler) ValueJSON(ctx *gin.Context) {
 	var input entity.Metrics
 	body := ctx.Request.Body
-	defer body.Close()
+	defer func() {
+		err := body.Close()
+		if err != nil {
+			log.Trace().Err(err).Msg("Error while closing body")
+		}
+	}()
 	err := json.NewDecoder(body).Decode(&input)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid metric"})
@@ -58,7 +67,7 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 		handleCustomError(ctx, err)
 		return
 	}
-	output := h.storage.Get(&input)
+	output := h.storage.Get(input.ID)
 	if output == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.ErrMetricNotFound})
 		return
@@ -67,6 +76,8 @@ func (h *handler) ValueJSON(ctx *gin.Context) {
 	log.Debug().Interface("Request ValueJson Output: %s", output)
 	ctx.JSON(http.StatusOK, output)
 }
+
+// Value is a handler for /value/:metric_type/:metric_name endpoint to get metric value in plain text format
 func (h *handler) Value(ctx *gin.Context) {
 	input := entity.Metrics{
 		ID:    ctx.Param("metric_name"),
@@ -77,7 +88,7 @@ func (h *handler) Value(ctx *gin.Context) {
 		handleCustomError(ctx, err)
 		return
 	}
-	output := h.storage.Get(&input)
+	output := h.storage.Get(input.ID)
 	if output == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": entity.ErrMetricNotFound})
 		return
@@ -95,6 +106,8 @@ func (h *handler) Value(ctx *gin.Context) {
 	}
 
 }
+
+// UpdateMetricsJSON is a handler for POST "/update/" endpoint to update metric value in JSON format
 func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 	var input entity.Metrics
 	err := json.NewDecoder(ctx.Request.Body).Decode(&input)
@@ -118,6 +131,9 @@ func (h *handler) UpdateMetricsJSON(ctx *gin.Context) {
 	output.CalculateHash(config.GetConfig().Key)
 	ctx.JSON(http.StatusOK, output)
 }
+
+// UpdateMetric is a handler for /update/:metric_type/:metric_name/:metric_value
+// endpoint to update metric value in plain text format
 func (h *handler) UpdateMetric(ctx *gin.Context) {
 	input := entity.Metrics{
 		ID:    ctx.Param("metric_name"),
@@ -161,6 +177,7 @@ func (h *handler) UpdateMetric(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, output)
 }
 
+// BulkUpdateJSON is a handler for POST "/updates/" endpoint to update multiple metrics values in JSON format
 func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 	var input []*entity.Metrics
 	fmt.Println(ctx.Request.Body)
@@ -195,6 +212,8 @@ func (h *handler) BulkUpdateJSON(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, output)
 }
 
+// HTMLAllMetrics is a handler for GET "/" endpoint
+// to get all metrics from storage in HTML format
 func (h *handler) HTMLAllMetrics(ctx *gin.Context) {
 	body := generateHTMLTable(h.storage)
 	// Sort the table by type, name, so it's easier to read when page updates
@@ -208,6 +227,7 @@ func (h *handler) HTMLAllMetrics(ctx *gin.Context) {
 	ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(sb.String()))
 }
 
+// PingDB is a handler for GET "/ping" endpoint to check database connection
 func (h *handler) PingDB(ctx *gin.Context) {
 	c, cancel := context.WithTimeout(ctx.Request.Context(), 5*time.Second)
 	defer cancel()
