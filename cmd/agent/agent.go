@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"time"
 )
 
 var (
@@ -31,6 +32,9 @@ func main() {
 	fmt.Printf("Build date: %s\n", buildDate)
 	fmt.Printf("Build commit: %s\n", buildCommit)
 
+	agent = ag.NewAgent(service.NewMemService())
+	log.Info().Msg("Agent started")
+	time.Sleep(1 * time.Second)
 	f, err := os.Create("server_mem.prof")
 	if err != nil {
 		log.Fatal().Err(err).Msg("could not create memory profile")
@@ -39,9 +43,9 @@ func main() {
 	if err = pprof.WriteHeapProfile(f); err != nil {
 		log.Fatal().Err(err).Msg("could not write memory profile")
 	}
-	_ = f.Close()
-
-	agent = ag.NewAgent(service.NewMemService())
-	log.Info().Msg("Agent started")
+	err = f.Close()
+	if err != nil {
+		log.Fatal().Err(err).Msg("could not close memory profile")
+	}
 	agent.Start()
 }

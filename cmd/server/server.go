@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
@@ -68,27 +69,14 @@ func main() {
 	fmt.Printf("Build date: %s\n", buildDate)
 	fmt.Printf("Build commit: %s\n", buildCommit)
 
-	f, err := os.Create("server_mem.prof")
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not create memory profile")
-	}
-	runtime.GC()
-	if err = pprof.WriteHeapProfile(f); err != nil {
-		log.Fatal().Err(err).Msg("could not write memory profile")
-	}
-	err = f.Close()
-	if err != nil {
-		return
-	}
-
 	ctx := context.Background()
 	dbConn = postgres.NewDB()
 	if config.GetConfig().Database.Address != "" {
-		err = dbConn.Connect()
-		dbAdapter = adapters.NewAdapter(ctx, dbConn.GetConn())
+		err := dbConn.Connect()
 		if err != nil {
 			log.Fatal().Err(err).Msg("Database connection error")
 		}
+		dbAdapter = adapters.NewAdapter(ctx, dbConn.GetConn())
 	}
 
 	log.Info().Msg("Database connected")
@@ -103,16 +91,32 @@ func main() {
 	log.Info().Msg("Starting server on " + config.GetConfig().Server.Address)
 
 	go func() {
-		if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal().Err(err).Msg("Listen and serve error")
 		}
 	}()
 	go func() {
-		err = http.ListenAndServe("localhost:9090", nil)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Listen and serve error")
+		if err := http.ListenAndServe("localhost:9090", nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal().Err(err).Msg("http Listen and serve error")
 		}
 	}()
+
+	time.Sleep(1 * time.Second)
+
+	f, err := os.Create("server_mem.prof")
+	if err != nil {
+		log.Error().Err(err).Msg("could not create memory profile")
+	}
+	runtime.GC()
+	if err = pprof.WriteHeapProfile(f); err != nil {
+		log.Error().Err(err).Msg("could not write memory profile")
+	}
+	err = f.Close()
+	if err != nil {
+		log.Error().Err(err).Msg("could not close memory profile")
+		return
+	}
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

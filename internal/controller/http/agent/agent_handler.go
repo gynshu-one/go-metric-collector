@@ -180,6 +180,7 @@ func (h *handler) makeReport() {
 		}
 		err = resp.RawBody().Close()
 		if err != nil {
+			log.Error().Err(err).Msg("Error closing Resty response body")
 			return
 		}
 	}

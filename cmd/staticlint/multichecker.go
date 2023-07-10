@@ -68,9 +68,7 @@ func main() {
 		// Errcheck is a fork of the original errcheck tool with support for Go modules.
 		errcheck.Analyzer,
 	}
-	i := 0
 	for _, v := range staticcheck.Analyzers {
-
 		// All analyzers starting in SA "class"
 		if strings.HasPrefix(v.Analyzer.Name, "SA") {
 			analyzers = append(analyzers, v.Analyzer)
@@ -79,7 +77,6 @@ func main() {
 		// And one from other "class"
 		if v.Analyzer.Name == "S1023" {
 			analyzers = append(analyzers, v.Analyzer)
-			i++
 		}
 	}
 

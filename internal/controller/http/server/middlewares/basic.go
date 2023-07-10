@@ -95,12 +95,12 @@ func decompressBr(data []byte) ([]byte, error) {
 }
 func decompressDeflate(data []byte) ([]byte, error) {
 	r := flate.NewReader(bytes.NewReader(data))
-	defer func(r io.ReadCloser) {
+	defer func() {
 		err := r.Close()
 		if err != nil {
 			log.Trace().Msgf("Failed to close deflate reader: %v", err)
 		}
-	}(r)
+	}()
 
 	var b bytes.Buffer
 	_, err := b.ReadFrom(r)
@@ -116,12 +116,12 @@ func decompressGzip(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func(r *gzip.Reader) {
+	defer func() {
 		err = r.Close()
 		if err != nil {
 			log.Trace().Msgf("Failed to close gzip reader: %v", err)
 		}
-	}(r)
+	}()
 
 	var b bytes.Buffer
 	_, err = b.ReadFrom(r)
