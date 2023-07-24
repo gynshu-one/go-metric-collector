@@ -42,6 +42,7 @@ type handler struct {
 
 type Handler interface {
 	Start()
+	Stop()
 }
 
 func NewAgent(storage service.MemStorage) *handler {
@@ -49,6 +50,11 @@ func NewAgent(storage service.MemStorage) *handler {
 		memory:  storage,
 		workers: service.NewWorkerPool(config.GetConfig().Agent.RateLimit),
 	}
+}
+
+func (h *handler) Stop() {
+	h.workers.Stop()
+	h.report()
 }
 
 // Start polls runtime Metrics and reports them to the server by calling Report()

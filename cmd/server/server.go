@@ -93,7 +93,6 @@ func main() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal().Err(err).Msg("https! Listen and serve error")
 		}
-		return
 	}()
 
 	go func() {
@@ -119,7 +118,7 @@ func main() {
 	}
 
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	<-quit
 
 	log.Info().Msg("Shutdown Server ...")
