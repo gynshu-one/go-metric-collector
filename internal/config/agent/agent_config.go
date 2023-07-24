@@ -19,6 +19,7 @@ type config struct {
 	Server struct {
 		Address string `mapstructure:"ADDRESS"`
 	}
+	CryptoKey string `mapstructure:"CRYPTO_KEY"`
 }
 
 var instance *config
@@ -56,6 +57,9 @@ func (config *config) readOs() {
 	if v.Get("RATE_LIMIT") != nil {
 		config.Agent.RateLimit = v.GetInt("RATE_LIMIT")
 	}
+	if v.Get("CRYPTO_KEY") != nil {
+		config.CryptoKey = v.GetString("CRYPTO_KEY")
+	}
 	config.Server.Address = "http://" + config.Server.Address
 }
 
@@ -67,8 +71,9 @@ func (config *config) readAgentFlags() {
 	appFlags.StringVar(&config.Server.Address, "a", "localhost:8080", "server address")
 	appFlags.StringVar(&config.Key, "k", "", "hash key")
 	appFlags.DurationVar(&config.Agent.PollInterval, "p", 2*time.Second, "poll interval")
-	appFlags.DurationVar(&config.Agent.ReportInterval, "r", 10*time.Second, "report interval")
+	appFlags.DurationVar(&config.Agent.ReportInterval, "r", 3*time.Second, "report interval")
 	appFlags.IntVar(&config.Agent.RateLimit, "l", 2, "rate limit")
+	appFlags.StringVar(&config.CryptoKey, "crypto-key", "", "crypto key")
 
 	// Parse the flags using the new flag set
 	err := appFlags.Parse(os.Args[1:])

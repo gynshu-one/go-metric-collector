@@ -34,8 +34,7 @@ var (
 	handler      hand.Handler
 	router       *gin.Engine
 	dbConn       postgres.DBConn
-
-	dbAdapter adapters.DBAdapter
+	dbAdapter    adapters.DBAdapter
 )
 
 func init() {
@@ -84,7 +83,7 @@ func main() {
 	log.Info().Msg("Activating services")
 	storage = usecase.NewServerUseCase(ctx, service.NewMemService(), dbAdapter)
 	handler = hand.NewServerHandler(storage, dbConn)
-	router.Use(cors.Default(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression))
+	router.Use(cors.Default(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression), middlewares.DecryptMiddleware())
 	routers.MetricsRoute(router, handler)
 	log.Info().Msg("Services activated")
 
@@ -92,9 +91,11 @@ func main() {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal().Err(err).Msg("Listen and serve error")
+			log.Fatal().Err(err).Msg("https! Listen and serve error")
 		}
+		return
 	}()
+
 	go func() {
 		if err := http.ListenAndServe("localhost:9090", nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal().Err(err).Msg("http Listen and serve error")

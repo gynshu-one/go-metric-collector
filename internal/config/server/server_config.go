@@ -21,6 +21,7 @@ type config struct {
 	Database struct {
 		Address string `mapstructure:"DATABASE_DSN"`
 	}
+	CryptoKey string `mapstructure:"CRYPTO_KEY"`
 }
 
 var instance *config
@@ -63,6 +64,9 @@ func (config *config) readOs() {
 	if v.Get("DATABASE_DSN") != nil {
 		config.Database.Address = v.GetString("DATABASE_DSN")
 	}
+	if v.Get("CRYPTO_KEY") != nil {
+		config.CryptoKey = v.GetString("CRYPTO_KEY")
+	}
 	//config.Server.Address = "http://" + config.Server.Address
 }
 
@@ -91,6 +95,7 @@ func (config *config) readServerFlags() {
 	appFlags.StringVar(&config.Key, "k", "", "hash key")
 	appFlags.BoolVar(&config.Server.Restore, "r", true, "restore")
 	appFlags.StringVar(&config.Database.Address, "d", "", "DB address")
+	appFlags.StringVar(&config.CryptoKey, "crypto-key", "", "crypto key")
 	err := appFlags.Parse(os.Args[1:])
 	if err != nil {
 		log.Debug().Err(err).Msg("Failed to parse flags")
