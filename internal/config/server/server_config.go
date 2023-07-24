@@ -36,7 +36,7 @@ func GetConfig() *config {
 		flags := readServerFlags()
 		smartSet(flags, prior)
 		if prior.CfgPath != "" {
-			json := readConfigJson(prior.CfgPath)
+			json := readConfigJSON(prior.CfgPath)
 			smartSet(json, prior)
 		}
 		instance = prior
@@ -116,7 +116,7 @@ func readServerFlags() *config {
 	return &cfg
 }
 
-func readConfigJson(path string) *config {
+func readConfigJSON(path string) *config {
 	var cfg config
 	v := viper.New()
 	v.SetConfigName("config")
@@ -152,7 +152,7 @@ func smartSet(new, old *config) {
 	if new.Server.StoreFile != "" {
 		old.Server.StoreFile = new.Server.StoreFile
 	}
-	if new.Server.Restore != false {
+	if new.Server.Restore {
 		old.Server.Restore = new.Server.Restore
 	}
 	if new.Database.Address != "" {

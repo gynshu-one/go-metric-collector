@@ -34,7 +34,7 @@ func GetConfig() *config {
 		flags := readAgentFlags()
 		smartSet(flags, prior)
 		if prior.CfgPath != "" {
-			json := readConfigJson(prior.CfgPath)
+			json := readConfigJSON(prior.CfgPath)
 			smartSet(json, prior)
 		}
 		prior.Server.Address = "http://" + prior.Server.Address
@@ -97,7 +97,7 @@ func readAgentFlags() *config {
 	return &cfg
 }
 
-func readConfigJson(path string) *config {
+func readConfigJSON(path string) *config {
 	var cfg config
 	v := viper.New()
 	v.SetConfigName("config")
