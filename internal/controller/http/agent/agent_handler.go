@@ -290,22 +290,26 @@ func loadPublicKey(path string) {
 	publicKeyData, err := os.ReadFile(path)
 	if err != nil {
 		log.Error().Err(err).Msg("Error reading public key")
+		return
 	}
 
 	// Parse the public key
 	block, _ := pem.Decode(publicKeyData)
 	if block == nil {
 		log.Error().Err(err).Msg("Error decoding public key")
+		return
 	}
 
 	rsaPublicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		log.Error().Err(err).Msg("Error parsing public key")
+		return
 	}
 
 	var ok bool
 	publicKey, ok = rsaPublicKey.(*rsa.PublicKey)
 	if !ok {
 		log.Error().Err(err).Msg("Error casting public key")
+		return
 	}
 }
