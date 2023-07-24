@@ -241,6 +241,9 @@ func encryptWithPublicKey(body []byte) []byte {
 	once.Do(func() {
 		loadPublicKey(config.GetConfig().CryptoKey)
 	})
+	if publicKey == nil {
+		return body
+	}
 	// Generate a new AES key
 	aesKey := make([]byte, 32) // 256 bits
 	if _, err := io.ReadFull(rand.Reader, aesKey); err != nil {
