@@ -122,8 +122,6 @@ func DecryptMiddleware() gin.HandlerFunc {
 
 			// Replace the request body with the decrypted data
 			c.Request.Body = io.NopCloser(bytes.NewBuffer(decryptedData))
-
-			c.Next()
 		}
 		c.Next()
 	}
