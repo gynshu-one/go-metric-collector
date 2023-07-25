@@ -101,7 +101,7 @@ func readServerFlags() *config {
 	appFlags := flag.NewFlagSet("go-metric-collector", flag.ContinueOnError)
 
 	appFlags.StringVar(&cfg.Server.Address, "a", "localhost:8080", "server address")
-	appFlags.DurationVar(&cfg.Server.StoreInterval, "i", 300*time.Second, "store interval")
+	appFlags.DurationVar(&cfg.Server.StoreInterval, "i", 1*time.Second, "store interval")
 	appFlags.StringVar(&cfg.Server.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")
 	appFlags.StringVar(&cfg.Key, "k", "", "hash key")
 	appFlags.BoolVar(&cfg.Server.Restore, "r", true, "restore")
@@ -140,25 +140,25 @@ func smartSet(new, old *config) {
 		return
 	}
 
-	if new.Key != "" {
+	if old.Key == "" {
 		old.Key = new.Key
 	}
-	if new.Server.Address != "" {
+	if old.Server.Address == "" {
 		old.Server.Address = new.Server.Address
 	}
-	if new.Server.StoreInterval != 0 {
+	if old.Server.StoreInterval == 0 {
 		old.Server.StoreInterval = new.Server.StoreInterval
 	}
-	if new.Server.StoreFile != "" {
+	if old.Server.StoreFile == "" {
 		old.Server.StoreFile = new.Server.StoreFile
 	}
-	if new.Server.Restore {
-		old.Server.Restore = new.Server.Restore
-	}
-	if new.Database.Address != "" {
+	if old.Database.Address == "" {
 		old.Database.Address = new.Database.Address
 	}
-	if new.CryptoKey != "" {
+	if old.CryptoKey == "" {
 		old.CryptoKey = new.CryptoKey
+	}
+	if old.CfgPath == "" {
+		old.CfgPath = new.CfgPath
 	}
 }

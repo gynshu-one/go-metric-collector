@@ -84,7 +84,7 @@ func readAgentFlags() *config {
 	appFlags.StringVar(&cfg.Server.Address, "a", "localhost:8080", "server address")
 	appFlags.StringVar(&cfg.Key, "k", "", "hash key")
 	appFlags.DurationVar(&cfg.Agent.PollInterval, "p", 2*time.Second, "poll interval")
-	appFlags.DurationVar(&cfg.Agent.ReportInterval, "r", 3*time.Second, "report interval")
+	appFlags.DurationVar(&cfg.Agent.ReportInterval, "r", 10*time.Second, "report interval")
 	appFlags.IntVar(&cfg.Agent.RateLimit, "l", 2, "rate limit")
 	appFlags.StringVar(&cfg.CryptoKey, "crypto-key", "", "crypto key")
 	appFlags.StringVar(&cfg.CfgPath, "c", "config", "config file")
@@ -117,25 +117,25 @@ func readConfigJSON(path string) *config {
 // smartSet sets new config values only if they are not empty
 // meaning old is prioritized over new
 func smartSet(new, old *config) {
-	if new.Key != "" {
+	if old.Key == "" {
 		old.Key = new.Key
 	}
-	if new.Agent.PollInterval != 0 {
+	if old.Agent.PollInterval == 0 {
 		old.Agent.PollInterval = new.Agent.PollInterval
 	}
-	if new.Agent.ReportInterval != 0 {
+	if old.Agent.ReportInterval == 0 {
 		old.Agent.ReportInterval = new.Agent.ReportInterval
 	}
-	if new.Agent.RateLimit != 0 {
+	if old.Agent.RateLimit == 0 {
 		old.Agent.RateLimit = new.Agent.RateLimit
 	}
-	if new.Server.Address != "" {
+	if old.Server.Address == "" {
 		old.Server.Address = new.Server.Address
 	}
-	if new.CryptoKey != "" {
+	if old.CryptoKey == "" {
 		old.CryptoKey = new.CryptoKey
 	}
-	if new.CfgPath != "" {
+	if old.CfgPath == "" {
 		old.CfgPath = new.CfgPath
 	}
 }
