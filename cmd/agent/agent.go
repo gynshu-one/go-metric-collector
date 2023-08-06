@@ -43,36 +43,39 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	// grpc
-	conn, err := grpc.DialContext(ctx,
-		config.GetConfig().Server.GRPCAddress,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024*1024*20)),
-	)
 
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to dial server")
-	}
+	var grpcClient proto.MetricServiceClient
+	if config.GetConfig().ReportMode == "grpc" {
+		// grpc
+		conn, err := grpc.DialContext(ctx,
+			config.GetConfig().Server.GRPCAddress,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024*1024*20)),
+		)
 
-	defer func(conn *grpc.ClientConn) {
-		err = conn.Close()
 		if err != nil {
-			log.Warn().Err(err).Msg("failed to close connection")
+			log.Fatal().Err(err).Msg("failed to dial server")
 		}
-	}(conn)
 
-	waitForConnection(ctx, conn)
-	grpcClient := proto.NewMetricServiceClient(conn)
+		defer func(conn *grpc.ClientConn) {
+			err = conn.Close()
+			if err != nil {
+				log.Warn().Err(err).Msg("failed to close connection")
+			}
+		}(conn)
+
+		waitForConnection(ctx, conn)
+		grpcClient = proto.NewMetricServiceClient(conn)
+
+		live, err := grpcClient.Live(ctx, &emptypb.Empty{})
+		if err != nil {
+			return
+		}
+		if live.Message != "OK" {
+			log.Fatal().Msgf("Server live: %s", live.Message)
+		}
+	}
 	agent = ag.NewAgent(service.NewMemService(), grpcClient)
-
-	live, err := grpcClient.Live(ctx, &emptypb.Empty{})
-	if err != nil {
-		return
-	}
-	if live.Message != "OK" {
-		log.Fatal().Msgf("Server live: %s", live.Message)
-	}
-
 	log.Info().Msg("Agent started")
 	time.Sleep(1 * time.Second)
 	f, err := os.Create("server_mem.prof")
