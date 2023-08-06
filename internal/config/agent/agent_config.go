@@ -19,6 +19,8 @@ type config struct {
 	Server struct {
 		Address string `mapstructure:"ADDRESS"`
 	}
+	CryptoKey string `mapstructure:"CRYPTO_KEY"`
+	CfgPath   string `mapstructure:"CONFIG"`
 }
 
 var instance *config
@@ -28,8 +30,15 @@ func GetConfig() *config {
 	once.Do(func() {
 		instance = &config{}
 		// Order matters if we want to prioritize ENV over flags
-		instance.readAgentFlags()
-		instance.readOs()
+		prior := readOs()
+		flags := readAgentFlags()
+		smartSet(flags, prior)
+		if prior.CfgPath != "" {
+			json := readConfigJSON(prior.CfgPath)
+			smartSet(json, prior)
+		}
+		prior.Server.Address = "http://" + prior.Server.Address
+		instance = prior
 		log.Debug().Interface("config", instance).Msg("Agent started with configs")
 	})
 	return instance
@@ -37,42 +46,96 @@ func GetConfig() *config {
 
 // readOs reads config from environment variables
 // This func will replace Config parameters if any presented in os environment vars
-func (config *config) readOs() {
+func readOs() *config {
+	var cfg config
 	// load config from environment variables
 	v := viper.New()
 	v.AutomaticEnv()
-	if v.Get("ADDRESS") != nil {
-		config.Server.Address = v.GetString("ADDRESS")
+	if v.GetString("KEY") != "" {
+		cfg.Key = v.GetString("KEY")
 	}
-	if v.Get("POLL_INTERVAL") != nil {
-		config.Agent.PollInterval = v.GetDuration("POLL_INTERVAL")
+	if v.GetDuration("POLL_INTERVAL") != 0 {
+		cfg.Agent.PollInterval = v.GetDuration("POLL_INTERVAL")
 	}
-	if v.Get("REPORT_INTERVAL") != nil {
-		config.Agent.ReportInterval = v.GetDuration("REPORT_INTERVAL")
+	if v.GetDuration("REPORT_INTERVAL") != 0 {
+		cfg.Agent.ReportInterval = v.GetDuration("REPORT_INTERVAL")
 	}
-	if v.Get("KEY") != nil {
-		config.Key = v.GetString("KEY")
+	if v.GetInt("RATE_LIMIT") != 0 {
+		cfg.Agent.RateLimit = v.GetInt("RATE_LIMIT")
 	}
-	if v.Get("RATE_LIMIT") != nil {
-		config.Agent.RateLimit = v.GetInt("RATE_LIMIT")
+	if v.GetString("ADDRESS") != "" {
+		cfg.Server.Address = v.GetString("ADDRESS")
 	}
-	config.Server.Address = "http://" + config.Server.Address
+	if v.GetString("CRYPTO_KEY") != "" {
+		cfg.CryptoKey = v.GetString("CRYPTO_KEY")
+	}
+	if v.GetString("CONFIG") != "" {
+		cfg.CfgPath = v.GetString("CONFIG")
+	}
+	return &cfg
 }
 
 // readAgentFlags separate function required bec of similar variable names required for agent and server
-func (config *config) readAgentFlags() {
+func readAgentFlags() *config {
+	var cfg config
 	// read flags
 	appFlags := flag.NewFlagSet("go-metric-collector", flag.ContinueOnError)
 
-	appFlags.StringVar(&config.Server.Address, "a", "localhost:8080", "server address")
-	appFlags.StringVar(&config.Key, "k", "", "hash key")
-	appFlags.DurationVar(&config.Agent.PollInterval, "p", 2*time.Second, "poll interval")
-	appFlags.DurationVar(&config.Agent.ReportInterval, "r", 10*time.Second, "report interval")
-	appFlags.IntVar(&config.Agent.RateLimit, "l", 2, "rate limit")
+	appFlags.StringVar(&cfg.Server.Address, "a", "localhost:8080", "server address")
+	appFlags.StringVar(&cfg.Key, "k", "", "hash key")
+	appFlags.DurationVar(&cfg.Agent.PollInterval, "p", 2*time.Second, "poll interval")
+	appFlags.DurationVar(&cfg.Agent.ReportInterval, "r", 10*time.Second, "report interval")
+	appFlags.IntVar(&cfg.Agent.RateLimit, "l", 2, "rate limit")
+	appFlags.StringVar(&cfg.CryptoKey, "crypto-key", "", "crypto key")
+	appFlags.StringVar(&cfg.CfgPath, "c", "config", "config file")
 
 	// Parse the flags using the new flag set
 	err := appFlags.Parse(os.Args[1:])
 	if err != nil {
-		log.Debug().Err(err).Msg("Failed to parse flags")
+		log.Error().Err(err).Msg("Failed to parse flags")
+	}
+	return &cfg
+}
+
+func readConfigJSON(path string) *config {
+	var cfg config
+	v := viper.New()
+	v.SetConfigName("config")
+	v.AddConfigPath(path)
+	v.SetConfigType("json")
+	err := v.ReadInConfig()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to read config file")
+	}
+	err = v.Unmarshal(&cfg)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to unmarshal config file")
+	}
+	return &cfg
+}
+
+// smartSet sets new config values only if they are not empty
+// meaning old is prioritized over new
+func smartSet(new, old *config) {
+	if old.Key == "" {
+		old.Key = new.Key
+	}
+	if old.Agent.PollInterval == 0 {
+		old.Agent.PollInterval = new.Agent.PollInterval
+	}
+	if old.Agent.ReportInterval == 0 {
+		old.Agent.ReportInterval = new.Agent.ReportInterval
+	}
+	if old.Agent.RateLimit == 0 {
+		old.Agent.RateLimit = new.Agent.RateLimit
+	}
+	if old.Server.Address == "" {
+		old.Server.Address = new.Server.Address
+	}
+	if old.CryptoKey == "" {
+		old.CryptoKey = new.CryptoKey
+	}
+	if old.CfgPath == "" {
+		old.CfgPath = new.CfgPath
 	}
 }

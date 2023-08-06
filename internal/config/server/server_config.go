@@ -21,6 +21,8 @@ type config struct {
 	Database struct {
 		Address string `mapstructure:"DATABASE_DSN"`
 	}
+	CryptoKey string `mapstructure:"CRYPTO_KEY"`
+	CfgPath   string `mapstructure:"CONFIG"`
 }
 
 var instance *config
@@ -30,8 +32,14 @@ func GetConfig() *config {
 	once.Do(func() {
 		instance = &config{}
 		// Order matters if we want to prioritize ENV over flags
-		instance.readServerFlags()
-		instance.readOs()
+		prior := readOs()
+		flags := readServerFlags()
+		smartSet(flags, prior)
+		if prior.CfgPath != "" {
+			json := readConfigJSON(prior.CfgPath)
+			smartSet(json, prior)
+		}
+		instance = prior
 		// Then init files
 		instance.initFiles()
 		log.Debug().Interface("config", instance).Msg("Server started with configs")
@@ -41,29 +49,35 @@ func GetConfig() *config {
 
 // readOs reads config from environment variables
 // This func will replace Config parameters if any presented in os environment vars
-func (config *config) readOs() {
-	// load config from environment variables
+func readOs() *config {
+	var cfg config
 	v := viper.New()
 	v.AutomaticEnv()
 	if v.Get("ADDRESS") != nil {
-		config.Server.Address = v.GetString("ADDRESS")
+		cfg.Server.Address = v.GetString("ADDRESS")
 	}
 	if v.Get("STORE_INTERVAL") != nil {
-		config.Server.StoreInterval = v.GetDuration("STORE_INTERVAL")
+		cfg.Server.StoreInterval = v.GetDuration("STORE_INTERVAL")
 	}
 	if v.Get("STORE_FILE") != nil {
-		config.Server.StoreFile = v.GetString("STORE_FILE")
+		cfg.Server.StoreFile = v.GetString("STORE_FILE")
 	}
 	if v.Get("RESTORE") != nil {
-		config.Server.Restore = v.GetBool("RESTORE")
+		cfg.Server.Restore = v.GetBool("RESTORE")
 	}
 	if v.Get("KEY") != nil {
-		config.Key = v.GetString("KEY")
+		cfg.Key = v.GetString("KEY")
 	}
 	if v.Get("DATABASE_DSN") != nil {
-		config.Database.Address = v.GetString("DATABASE_DSN")
+		cfg.Database.Address = v.GetString("DATABASE_DSN")
 	}
-	//config.Server.Address = "http://" + config.Server.Address
+	if v.Get("CRYPTO_KEY") != nil {
+		cfg.CryptoKey = v.GetString("CRYPTO_KEY")
+	}
+	if v.Get("CONFIG") != nil {
+		cfg.CfgPath = v.GetString("CONFIG")
+	}
+	return &cfg
 }
 
 // initFiles creates all necessary files and folders for server storage
@@ -81,18 +95,70 @@ func (config *config) initFiles() {
 }
 
 // readServerFlags reads config from flags Run this first
-func (config *config) readServerFlags() {
+func readServerFlags() *config {
+	var cfg config
 	// read flags
 	appFlags := flag.NewFlagSet("go-metric-collector", flag.ContinueOnError)
 
-	appFlags.StringVar(&config.Server.Address, "a", "localhost:8080", "server address")
-	appFlags.DurationVar(&config.Server.StoreInterval, "i", 300*time.Second, "store interval")
-	appFlags.StringVar(&config.Server.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")
-	appFlags.StringVar(&config.Key, "k", "", "hash key")
-	appFlags.BoolVar(&config.Server.Restore, "r", true, "restore")
-	appFlags.StringVar(&config.Database.Address, "d", "", "DB address")
+	appFlags.StringVar(&cfg.Server.Address, "a", "localhost:8080", "server address")
+	appFlags.DurationVar(&cfg.Server.StoreInterval, "i", 1*time.Second, "store interval")
+	appFlags.StringVar(&cfg.Server.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")
+	appFlags.StringVar(&cfg.Key, "k", "", "hash key")
+	appFlags.BoolVar(&cfg.Server.Restore, "r", true, "restore")
+	appFlags.StringVar(&cfg.Database.Address, "d", "", "DB address")
+	appFlags.StringVar(&cfg.CryptoKey, "crypto-key", "", "crypto key")
+	appFlags.StringVar(&cfg.CfgPath, "c", "config", "config file")
+
 	err := appFlags.Parse(os.Args[1:])
 	if err != nil {
 		log.Debug().Err(err).Msg("Failed to parse flags")
+	}
+	return &cfg
+}
+
+func readConfigJSON(path string) *config {
+	var cfg config
+	v := viper.New()
+	v.SetConfigName("config")
+	v.AddConfigPath(path)
+	v.SetConfigType("json")
+	err := v.ReadInConfig()
+	if err != nil {
+		log.Debug().Err(err).Msg("Failed to read config file")
+	}
+	err = v.Unmarshal(&cfg)
+	if err != nil {
+		log.Debug().Err(err).Msg("Failed to unmarshal config file")
+	}
+	return &cfg
+}
+
+// smartSet sets new config values only if they are not empty
+// meaning old is prioritized over new
+func smartSet(new, old *config) {
+	if new == nil || old == nil {
+		return
+	}
+
+	if old.Key == "" {
+		old.Key = new.Key
+	}
+	if old.Server.Address == "" {
+		old.Server.Address = new.Server.Address
+	}
+	if old.Server.StoreInterval == 0 {
+		old.Server.StoreInterval = new.Server.StoreInterval
+	}
+	if old.Server.StoreFile == "" {
+		old.Server.StoreFile = new.Server.StoreFile
+	}
+	if old.Database.Address == "" {
+		old.Database.Address = new.Database.Address
+	}
+	if old.CryptoKey == "" {
+		old.CryptoKey = new.CryptoKey
+	}
+	if old.CfgPath == "" {
+		old.CfgPath = new.CfgPath
 	}
 }

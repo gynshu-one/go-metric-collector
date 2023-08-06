@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	ag "github.com/gynshu-one/go-metric-collector/internal/controller/http/agent"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	"github.com/rs/zerolog/log"
 	"os"
+	"os/signal"
 	"runtime"
 	"runtime/pprof"
+	"syscall"
 	"time"
 )
 
@@ -47,5 +50,16 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("could not close memory profile")
 	}
-	agent.Start()
+	go agent.Start()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	<-quit
+
+	log.Info().Msg("Shutdown Agent ...")
+
+	// run func with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	agent.Stop(ctx)
 }

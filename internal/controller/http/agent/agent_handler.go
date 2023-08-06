@@ -5,6 +5,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/go-resty/resty/v2"
@@ -15,7 +16,7 @@ import (
 	"github.com/mackerelio/go-osstat/cpu"
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/v3/mem"
-	"math/rand"
+	mathrand "math/rand"
 	"reflect"
 	"runtime"
 	"sync"
@@ -32,6 +33,7 @@ type handler struct {
 
 type Handler interface {
 	Start()
+	Stop(ctx context.Context)
 }
 
 func NewAgent(storage service.MemStorage) *handler {
@@ -39,6 +41,26 @@ func NewAgent(storage service.MemStorage) *handler {
 		memory:  storage,
 		workers: service.NewWorkerPool(config.GetConfig().Agent.RateLimit),
 	}
+}
+
+func (h *handler) Stop(ctx context.Context) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		log.Error().Err(errors.New("no deadline set")).Msg("Error stopping agent")
+		return
+	}
+	go func() {
+		h.workers.Stop()
+		h.report()
+		ctx.Done()
+	}()
+	select {
+	case <-ctx.Done():
+		log.Info().Msg("Agent stopped successfully, Exiting...")
+	case <-time.After(time.Until(deadline)):
+		log.Error().Msg("Agent shutdown timeout. Exiting...")
+	}
+
 }
 
 // Start polls runtime Metrics and reports them to the server by calling Report()
@@ -66,15 +88,25 @@ func (h *handler) Start() {
 		}
 	}()
 	for {
-		bef, _ := cpu.Get()
+		bef, err := cpu.Get()
+		if err != nil {
+			log.Error().Err(err).Msg("Error getting CPU metrics")
+			bef = &cpu.Stats{}
+		}
 		time.Sleep(config.GetConfig().Agent.ReportInterval)
-		aft, _ := cpu.Get()
-		total := float64(aft.Total-bef.Total) * 100
-		h.memory.Set(&entity.Metrics{
-			ID:    "CPUutilization1",
-			MType: entity.GaugeType,
-			Value: tools.Float64Ptr(float64(aft.System-bef.System) / total),
-		})
+		aft, err := cpu.Get()
+		if err != nil {
+			log.Error().Err(err).Msg("Error getting CPU metrics")
+			aft = bef
+		}
+		if aft.Total > 0 {
+			total := float64(aft.Total-bef.Total) * 100
+			h.memory.Set(&entity.Metrics{
+				ID:    "CPUutilization1",
+				MType: entity.GaugeType,
+				Value: tools.Float64Ptr(float64(aft.System-bef.System) / total),
+			})
+		}
 		h.readAdditionalMetrics()
 		go func() {
 			h.mu.Lock()
@@ -86,7 +118,7 @@ func (h *handler) Start() {
 			h.memory.Set(&entity.Metrics{
 				ID:    "RandomValue",
 				MType: entity.GaugeType,
-				Value: tools.Float64Ptr(rand.Float64()),
+				Value: tools.Float64Ptr(mathrand.Float64()),
 			})
 			pollCount = 0
 			h.mu.Unlock()
@@ -172,7 +204,7 @@ func (h *handler) makeReport() {
 		}
 		resp, err := client.R().
 			SetHeader("Content-Type", "application/json").
-			SetBody(jsonData).
+			SetBody(encryptWithPublicKey(jsonData)).
 			Post(config.GetConfig().Server.Address + "/update/")
 		if err != nil {
 			log.Error().Err(err).Msg("Error reporting metrics one by one")
@@ -198,7 +230,7 @@ func (h *handler) bulkReport() error {
 	}
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
-		SetBody(jsonData).
+		SetBody(encryptWithPublicKey(jsonData)).
 		Post(config.GetConfig().Server.Address + "/updates/")
 	if err != nil {
 		if resp.StatusCode() == 404 {
