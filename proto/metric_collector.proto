@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+option go_package = "github.com/gynshu-one/go-metric-collector/proto";
+
+import "google/protobuf/empty.proto";
+
+message Metric {
+  string ID = 1;
+  string MType = 2;
+  double Value = 3;
+  int64 Delta = 4;
+  string Hash = 5;
+}
+
+
+service MetricService {
+  rpc Live(google.protobuf.Empty) returns (LiveResponse);
+
+  rpc ValueJSON(ValueRequest) returns (MetricResponse);
+  rpc Value(ValueRequest) returns (ValueResponse);
+
+  rpc UpdateMetricsJSON(UpdateMetricsJSONRequest) returns (MetricResponse);
+  rpc UpdateMetric(UpdateMetricRequest) returns (MetricResponse);
+
+  rpc BulkUpdateJSON(BulkUpdateJSONRequest) returns (BulkUpdateResponse);
+
+  rpc PingDB(google.protobuf.Empty) returns (PingDBResponse);
+}
+
+message LiveRequest {
+}
+
+message LiveResponse {
+  string message = 1;
+}
+
+
+message ValueRequest {
+  string metric_name = 1;
+  string metric_type = 2;
+}
+
+message UpdateMetricsJSONRequest {
+  Metric metric = 1;
+}
+
+message UpdateMetricRequest {
+  string metric_name = 1;
+  string metric_type = 2;
+  string metric_value = 3;
+}
+
+message BulkUpdateJSONRequest {
+  repeated Metric metrics = 1;
+}
+
+message ValueResponse {
+  string value = 1;
+}
+
+message MetricResponse {
+  Metric metric = 1;
+}
+
+message BulkUpdateResponse {
+  repeated Metric metrics = 1;
+}
+
+
+message PingDBResponse {
+  string message = 1;
+}
+
+
+
+
+

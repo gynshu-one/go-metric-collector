@@ -17,10 +17,12 @@ type config struct {
 		RateLimit      int           `mapstructure:"RATE_LIMIT"`
 	}
 	Server struct {
-		Address string `mapstructure:"ADDRESS"`
+		Address     string `mapstructure:"ADDRESS"`
+		GRPCAddress string `mapstructure:"GRPC_ADDRESS"`
 	}
-	CryptoKey string `mapstructure:"CRYPTO_KEY"`
-	CfgPath   string `mapstructure:"CONFIG"`
+	CryptoKey  string `mapstructure:"CRYPTO_KEY"`
+	CfgPath    string `mapstructure:"CONFIG"`
+	ReportMode string `mapstructure:"REPORT_MODE"`
 }
 
 var instance *config
@@ -72,6 +74,12 @@ func readOs() *config {
 	if v.GetString("CONFIG") != "" {
 		cfg.CfgPath = v.GetString("CONFIG")
 	}
+	if v.GetString("REPORT_MODE") != "" {
+		cfg.ReportMode = v.GetString("REPORT_MODE")
+	}
+	if v.GetString("GRPC_ADDRESS") != "" {
+		cfg.Server.GRPCAddress = v.GetString("GRPC_ADDRESS")
+	}
 	return &cfg
 }
 
@@ -87,7 +95,9 @@ func readAgentFlags() *config {
 	appFlags.DurationVar(&cfg.Agent.ReportInterval, "r", 10*time.Second, "report interval")
 	appFlags.IntVar(&cfg.Agent.RateLimit, "l", 2, "rate limit")
 	appFlags.StringVar(&cfg.CryptoKey, "crypto-key", "", "crypto key")
-	appFlags.StringVar(&cfg.CfgPath, "c", "config", "config file")
+	appFlags.StringVar(&cfg.CfgPath, "c", "", "config file")
+	appFlags.StringVar(&cfg.Server.GRPCAddress, "grpc", ":5250", "grpc address")
+	appFlags.StringVar(&cfg.ReportMode, "report-mode", "http", "report mode")
 
 	// Parse the flags using the new flag set
 	err := appFlags.Parse(os.Args[1:])
@@ -137,5 +147,11 @@ func smartSet(new, old *config) {
 	}
 	if old.CfgPath == "" {
 		old.CfgPath = new.CfgPath
+	}
+	if old.ReportMode == "" {
+		old.ReportMode = new.ReportMode
+	}
+	if old.Server.GRPCAddress == "" {
+		old.Server.GRPCAddress = new.Server.GRPCAddress
 	}
 }

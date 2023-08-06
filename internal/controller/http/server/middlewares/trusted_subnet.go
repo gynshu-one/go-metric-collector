@@ -23,13 +23,13 @@ func init() {
 }
 func CheckSubnet() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if CIDR == nil {
+			c.Next()
+			return
+		}
 		xReal := c.Request.Header.Get("X-Real-IP")
 		if xReal == "" {
 			c.AbortWithStatus(403)
-			return
-		}
-		if CIDR == nil {
-			c.Next()
 			return
 		}
 		if !CIDR.Contains(xReal) {
