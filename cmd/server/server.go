@@ -91,7 +91,7 @@ func main() {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal().Err(err).Msg("https! Listen and serve error")
+			log.Fatal().Err(err).Msg("http Listen and serve error")
 		}
 	}()
 

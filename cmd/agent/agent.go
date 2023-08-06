@@ -61,14 +61,5 @@ func main() {
 	// run func with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	go func() {
-		agent.Stop()
-		cancel()
-	}()
-	select {
-	case <-ctx.Done():
-		log.Info().Msg("Agent stopped successfully, Exiting...")
-	case <-time.After(15 * time.Second):
-		log.Error().Msg("Agent shutdown timeout. Exiting...")
-	}
+	agent.Stop(ctx)
 }

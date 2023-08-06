@@ -5,6 +5,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/go-resty/resty/v2"
@@ -32,7 +33,7 @@ type handler struct {
 
 type Handler interface {
 	Start()
-	Stop()
+	Stop(ctx context.Context)
 }
 
 func NewAgent(storage service.MemStorage) *handler {
@@ -42,9 +43,24 @@ func NewAgent(storage service.MemStorage) *handler {
 	}
 }
 
-func (h *handler) Stop() {
-	h.workers.Stop()
-	h.report()
+func (h *handler) Stop(ctx context.Context) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		log.Error().Err(errors.New("no deadline set")).Msg("Error stopping agent")
+		return
+	}
+	go func() {
+		h.workers.Stop()
+		h.report()
+		ctx.Done()
+	}()
+	select {
+	case <-ctx.Done():
+		log.Info().Msg("Agent stopped successfully, Exiting...")
+	case <-time.After(time.Until(deadline)):
+		log.Error().Msg("Agent shutdown timeout. Exiting...")
+	}
+
 }
 
 // Start polls runtime Metrics and reports them to the server by calling Report()

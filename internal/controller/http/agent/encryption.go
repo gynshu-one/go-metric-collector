@@ -13,53 +13,53 @@ import (
 	"github.com/rs/zerolog/log"
 	"io"
 	"os"
-	"sync"
 )
 
 var publicKey *rsa.PublicKey
+
+func init() {
+	loadPublicKey(config.GetConfig().CryptoKey)
+}
 
 func encryptWithPublicKey(body []byte) []byte {
 	if config.GetConfig().CryptoKey == "" {
 		return body
 	}
-	once.Do(func() {
-		loadPublicKey(config.GetConfig().CryptoKey)
-	})
 	if publicKey == nil {
 		return body
 	}
 	// Generate a new AES key
 	aesKey := make([]byte, 32) // 256 bits
 	if _, err := io.ReadFull(rand.Reader, aesKey); err != nil {
-		log.Fatal().Err(err).Msg("Error generating AES key")
+		log.Error().Err(err).Msg("Error generating AES key")
 		return body
 	}
 
 	// Encrypt the AES key with the RSA public key
 	encryptedAESKey, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, aesKey, nil)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error encrypting AES key")
+		log.Error().Err(err).Msg("Error encrypting AES key")
 		return body
 	}
 
 	// Create a new AES cipher block
 	block, err := aes.NewCipher(aesKey)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error creating AES cipher block")
+		log.Error().Err(err).Msg("Error creating AES cipher block")
 		return body
 	}
 
 	// Create a new GCM
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error creating GCM")
+		log.Error().Err(err).Msg("Error creating GCM")
 		return body
 	}
 
 	// Create a new nonce
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		log.Fatal().Err(err).Msg("Error creating nonce")
+		log.Error().Err(err).Msg("Error creating nonce")
 		return body
 	}
 
@@ -70,8 +70,6 @@ func encryptWithPublicKey(body []byte) []byte {
 	return []byte(base64.StdEncoding.EncodeToString(encryptedAESKey) + ":" + base64.StdEncoding.EncodeToString(ciphertext))
 
 }
-
-var once = sync.Once{}
 
 func loadPublicKey(path string) {
 	publicKeyData, err := os.ReadFile(path)

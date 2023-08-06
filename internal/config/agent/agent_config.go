@@ -92,7 +92,7 @@ func readAgentFlags() *config {
 	// Parse the flags using the new flag set
 	err := appFlags.Parse(os.Args[1:])
 	if err != nil {
-		log.Debug().Err(err).Msg("Failed to parse flags")
+		log.Error().Err(err).Msg("Failed to parse flags")
 	}
 	return &cfg
 }
@@ -105,11 +105,11 @@ func readConfigJSON(path string) *config {
 	v.SetConfigType("json")
 	err := v.ReadInConfig()
 	if err != nil {
-		log.Debug().Err(err).Msg("Failed to read config file")
+		log.Error().Err(err).Msg("Failed to read config file")
 	}
 	err = v.Unmarshal(&cfg)
 	if err != nil {
-		log.Debug().Err(err).Msg("Failed to unmarshal config file")
+		log.Error().Err(err).Msg("Failed to unmarshal config file")
 	}
 	return &cfg
 }
