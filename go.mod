@@ -3,6 +3,7 @@ module github.com/gynshu-one/go-metric-collector
 go 1.20
 
 require (
+	github.com/3th1nk/cidr v0.2.0
 	github.com/andybalholm/brotli v1.0.5
 	github.com/gin-contrib/cors v1.4.0
 	github.com/gin-contrib/gzip v0.0.6

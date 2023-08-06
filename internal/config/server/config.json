@@ -1,8 +1,9 @@
 {
   "address": "localhost:8080",
   "restore": true,
-  "store_interval": "1s",
+  "store_interval": "10m",
   "store_file": "file.db",
   "database_dsn": "",
-  "crypto_key": "cert/key.pem"
+  "crypto_key": "cert/key.pem",
+  "trusted_subnet": ""
 }

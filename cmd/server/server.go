@@ -83,7 +83,7 @@ func main() {
 	log.Info().Msg("Activating services")
 	storage = usecase.NewServerUseCase(ctx, service.NewMemService(), dbAdapter)
 	handler = hand.NewServerHandler(storage, dbConn)
-	router.Use(cors.Default(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression), middlewares.DecryptMiddleware())
+	router.Use(cors.Default(), middlewares.CheckSubnet(), middlewares.MiscDecompress(), gzip.Gzip(gzip.DefaultCompression), middlewares.DecryptMiddleware())
 	routers.MetricsRoute(router, handler)
 	log.Info().Msg("Services activated")
 
@@ -96,7 +96,7 @@ func main() {
 	}()
 
 	go func() {
-		if err := http.ListenAndServe("localhost:9090", nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := http.ListenAndServe("localhost:9099", nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal().Err(err).Msg("http Listen and serve error")
 		}
 	}()

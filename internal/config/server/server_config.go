@@ -21,8 +21,9 @@ type config struct {
 	Database struct {
 		Address string `mapstructure:"DATABASE_DSN"`
 	}
-	CryptoKey string `mapstructure:"CRYPTO_KEY"`
-	CfgPath   string `mapstructure:"CONFIG"`
+	CryptoKey     string `mapstructure:"CRYPTO_KEY"`
+	CfgPath       string `mapstructure:"CONFIG"`
+	TrustedSubNet string `mapstructure:"TRUSTED_SUBNET"`
 }
 
 var instance *config
@@ -77,6 +78,9 @@ func readOs() *config {
 	if v.Get("CONFIG") != nil {
 		cfg.CfgPath = v.GetString("CONFIG")
 	}
+	if v.Get("TRUSTED_SUBNET") != nil {
+		cfg.CfgPath = v.GetString("TRUSTED_SUBNET")
+	}
 	return &cfg
 }
 
@@ -101,13 +105,14 @@ func readServerFlags() *config {
 	appFlags := flag.NewFlagSet("go-metric-collector", flag.ContinueOnError)
 
 	appFlags.StringVar(&cfg.Server.Address, "a", "localhost:8080", "server address")
-	appFlags.DurationVar(&cfg.Server.StoreInterval, "i", 1*time.Second, "store interval")
+	appFlags.DurationVar(&cfg.Server.StoreInterval, "i", 10*time.Minute, "store interval")
 	appFlags.StringVar(&cfg.Server.StoreFile, "f", "/tmp/devops-metrics-db.json", "store file")
 	appFlags.StringVar(&cfg.Key, "k", "", "hash key")
 	appFlags.BoolVar(&cfg.Server.Restore, "r", true, "restore")
 	appFlags.StringVar(&cfg.Database.Address, "d", "", "DB address")
 	appFlags.StringVar(&cfg.CryptoKey, "crypto-key", "", "crypto key")
 	appFlags.StringVar(&cfg.CfgPath, "c", "config", "config file")
+	appFlags.StringVar(&cfg.TrustedSubNet, "t", "", "trusted subnet")
 
 	err := appFlags.Parse(os.Args[1:])
 	if err != nil {

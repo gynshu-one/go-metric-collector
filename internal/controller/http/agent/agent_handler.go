@@ -17,13 +17,15 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/v3/mem"
 	mathrand "math/rand"
+	"net"
+	"os"
 	"reflect"
 	"runtime"
 	"sync"
 	"time"
 )
 
-var client = resty.New()
+var client *resty.Client
 
 type handler struct {
 	mu      sync.Mutex
@@ -36,6 +38,29 @@ type Handler interface {
 	Stop(ctx context.Context)
 }
 
+func init() {
+	client = resty.New()
+	hostName, err := os.Hostname()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error retrieving hostname")
+	}
+
+	addrs, err := net.LookupIP(hostName)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error retrieving IP address")
+	}
+	var ip string
+	for _, addr := range addrs {
+		if ipv4 := addr.To4(); ipv4 != nil {
+			ip = ipv4.String()
+			break
+		}
+	}
+	if ip == "" {
+		log.Fatal().Err(err).Msg("Error retrieving IP address")
+	}
+	client.SetHeader("X-Real-IP", ip)
+}
 func NewAgent(storage service.MemStorage) *handler {
 	return &handler{
 		memory:  storage,
