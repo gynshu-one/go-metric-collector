@@ -8,27 +8,33 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/go-resty/resty/v2"
 	config "github.com/gynshu-one/go-metric-collector/internal/config/agent"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/entity"
 	"github.com/gynshu-one/go-metric-collector/internal/domain/service"
 	"github.com/gynshu-one/go-metric-collector/internal/tools"
+	"github.com/gynshu-one/go-metric-collector/proto"
 	"github.com/mackerelio/go-osstat/cpu"
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/v3/mem"
 	mathrand "math/rand"
+	"net"
+	"os"
 	"reflect"
 	"runtime"
 	"sync"
 	"time"
 )
 
-var client = resty.New()
+var client *resty.Client
+var reportMode = config.GetConfig().ReportMode
 
 type handler struct {
-	mu      sync.Mutex
-	memory  service.MemStorage
-	workers service.WorkerPool
+	mu         sync.Mutex
+	memory     service.MemStorage
+	workers    service.WorkerPool
+	grpcClient proto.MetricServiceClient
 }
 
 type Handler interface {
@@ -36,10 +42,34 @@ type Handler interface {
 	Stop(ctx context.Context)
 }
 
-func NewAgent(storage service.MemStorage) *handler {
+func init() {
+	client = resty.New()
+	hostName, err := os.Hostname()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error retrieving hostname")
+	}
+
+	addrs, err := net.LookupIP(hostName)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error retrieving IP address")
+	}
+	var ip string
+	for _, addr := range addrs {
+		if ipv4 := addr.To4(); ipv4 != nil {
+			ip = ipv4.String()
+			break
+		}
+	}
+	if ip == "" {
+		log.Fatal().Err(err).Msg("Error retrieving IP address")
+	}
+	client.SetHeader("X-Real-IP", ip)
+}
+func NewAgent(storage service.MemStorage, grpcClient proto.MetricServiceClient) *handler {
 	return &handler{
-		memory:  storage,
-		workers: service.NewWorkerPool(config.GetConfig().Agent.RateLimit),
+		memory:     storage,
+		workers:    service.NewWorkerPool(config.GetConfig().Agent.RateLimit),
+		grpcClient: grpcClient,
 	}
 }
 
@@ -177,20 +207,22 @@ func (h *handler) report() {
 	h.workers.Push(&service.Task{
 		ID: "bulkReport",
 		Task: func() {
-			err := h.bulkReport()
-			if !errors.Is(err, entity.ErrBulkReport) {
-				return
+			switch reportMode {
+			case "http":
+				err := h.bulkReport()
+				if !errors.Is(err, entity.ErrBulkReport) {
+					log.Debug().Msg("HTTP Bulk report unsuccessful, reporting metrics one by one")
+					h.makeReport()
+				}
+			case "grpc":
+				err := h.bulkReportGRPC()
+				if err != nil {
+					log.Debug().Msg("gRPC Bulk report unsuccessful, reporting metrics one by one")
+					h.makeReportGRPC()
+				}
 			}
 		},
 	})
-	log.Debug().Msg("Bulk report unsuccessful, reporting metrics one by one")
-	h.workers.Push(&service.Task{
-		ID: "makeReport",
-		Task: func() {
-			h.makeReport()
-		},
-	})
-
 }
 
 // MakeReport makes a report to the server
@@ -241,5 +273,52 @@ func (h *handler) bulkReport() error {
 		return err
 	}
 
+	return nil
+}
+
+func (h *handler) makeReportGRPC() {
+	for _, m := range h.memory.GetAll() {
+		req := proto.UpdateMetricRequest{
+			MetricName: m.ID,
+			MetricType: m.MType,
+		}
+		if m.Value != nil {
+			req.MetricValue = fmt.Sprintf("%f", *m.Value)
+		} else if m.Delta != nil {
+			req.MetricValue = fmt.Sprintf("%d", *m.Delta)
+		} else {
+			log.Error().Msg("Metric value is nil")
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_, err := h.grpcClient.UpdateMetric(ctx, &req)
+		if err != nil {
+			log.Error().Err(err).Msg("Error reporting metrics one by one")
+			cancel()
+			return
+		}
+		cancel()
+	}
+}
+
+func (h *handler) bulkReportGRPC() error {
+	m := h.memory.GetAll()
+	if len(m) == 0 {
+		return nil
+	}
+	var err error
+	req := proto.BulkUpdateJSONRequest{
+		Metrics: []*proto.Metric{},
+	}
+	for _, metric := range m {
+		req.Metrics = append(req.Metrics, tools.MarshalMetric(metric))
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, err = h.grpcClient.BulkUpdateJSON(ctx, &req)
+	if err != nil {
+		log.Error().Err(err).Msg("Error reporting metrics by bulk")
+		return err
+	}
 	return nil
 }

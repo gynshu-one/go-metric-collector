@@ -37,7 +37,7 @@ func TestAgent(t *testing.T) {
 			}))
 			defer server.Close()
 			config.GetConfig().Server.Address = server.URL
-			newAgent := NewAgent(service.NewMemService())
+			newAgent := NewAgent(service.NewMemService(), nil)
 			runtime.Gosched()
 			go func() {
 				newAgent.Start()
